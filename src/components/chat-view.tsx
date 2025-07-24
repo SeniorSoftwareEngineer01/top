@@ -24,12 +24,12 @@ export function ChatView({ chat }: ChatViewProps) {
         <ScrollArea className="h-full px-4">
           <div className="space-y-4 py-4">
             {chat.map((msg, index) => (
-              <div key={index} className="text-sm">
-                <div className="flex items-baseline gap-2">
+              <div key={index} className="text-sm" dir="rtl">
+                <div className="flex items-baseline justify-between gap-2">
                   <p className="font-semibold text-primary/80 truncate">{msg.author}</p>
                   <p className="text-xs text-muted-foreground whitespace-nowrap">{msg.timestamp}</p>
                 </div>
-                <p className="text-foreground/90 whitespace-pre-wrap">{msg.message}</p>
+                <p className="text-foreground/90 whitespace-pre-wrap text-right">{msg.message}</p>
               </div>
             ))}
           </div>
