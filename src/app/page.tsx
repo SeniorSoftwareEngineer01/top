@@ -87,10 +87,7 @@ export default function Home() {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen flex-col">
-        <Sidebar>
-          <ChatView chat={parsedChat} />
-        </Sidebar>
+      <div className="flex min-h-screen">
         <SidebarInset>
           <QueryInterface
             conversation={conversation}
@@ -98,6 +95,9 @@ export default function Home() {
             isLoading={isLoading}
           />
         </SidebarInset>
+        <Sidebar side="right">
+          <ChatView chat={parsedChat} />
+        </Sidebar>
       </div>
       <Toaster />
     </SidebarProvider>
