@@ -41,6 +41,11 @@ body {
     --sidebar-accent-foreground: 224 71% 4%;
     --sidebar-border: 214.3 31.8% 91.4%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    --chat-bubble-user-background: 140 80% 85%;
+    --chat-bubble-user-foreground: 224 71% 4%;
+    --chat-bubble-other-background: 0 0% 100%;
+    --chat-bubble-other-foreground: 224 71% 4%;
   }
   .dark {
     --background: 222 47% 11%;
@@ -75,6 +80,11 @@ body {
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 217.2 32.6% 17.5%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    --chat-bubble-user-background: 145 58% 31%;
+    --chat-bubble-user-foreground: 210 40% 98%;
+    --chat-bubble-other-background: 217.2 32.6% 25%;
+    --chat-bubble-other-foreground: 210 40% 98%;
   }
 }
 
