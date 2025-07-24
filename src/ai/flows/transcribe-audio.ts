@@ -3,17 +3,17 @@
 /**
  * @fileOverview A flow for transcribing audio files using the Deepgram API.
  *
- * - transcribeAudio - Transcribes an audio file.
+ * - transcribeAudio - Transcribes an audio file buffer.
  * - TranscribeAudioInput - The input type for the transcribeAudio function.
  * - TranscribeAudioOutput - The return type for the transcribeAudio function.
  */
 
 import { ai } from '@/ai/genkit';
-import { transcribeUrl } from '@/services/deepgram';
+import { transcribeAudio as transcribeAudioService } from '@/services/deepgram';
 import { z } from 'genkit';
 
 const TranscribeAudioInputSchema = z.object({
-  audioUrl: z.string().describe('The public URL of the audio file to transcribe.'),
+  audioBuffer: z.string().describe("The audio file's ArrayBuffer encoded as a Base64 string."),
 });
 export type TranscribeAudioInput = z.infer<typeof TranscribeAudioInputSchema>;
 
@@ -34,11 +34,11 @@ const transcribeAudioFlow = ai.defineFlow(
   },
   async (input) => {
     try {
-      const transcription = await transcribeUrl(input.audioUrl);
+      const buffer = Buffer.from(input.audioBuffer, 'base64');
+      const transcription = await transcribeAudioService(buffer);
       return { transcription };
     } catch (error) {
       console.error('Error in transcribeAudioFlow:', error);
-      // Return an empty transcription or a specific error message
       return { transcription: '[Audio transcription failed]' };
     }
   }

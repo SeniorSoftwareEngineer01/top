@@ -22,6 +22,16 @@ const arrayBufferToDataUri = (buffer: ArrayBuffer, type: string) => {
   return `data:${type};base64,${base64}`;
 }
 
+const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
 const getMimeType = (fileName: string): string => {
   const extension = fileName.split('.').pop()?.toLowerCase();
   switch (extension) {
@@ -144,7 +154,7 @@ export default function Home() {
       const audioTranscriptions = await Promise.all(
         audioMessages.map(async (msg) => {
             const media = mediaContent[msg.fileName!];
-            const transcription = await transcribeAudio({ audioUrl: media.url });
+            const transcription = await transcribeAudio({ audioBuffer: arrayBufferToBase64(media.buffer) });
             return {
                 fileName: msg.fileName!,
                 transcription: transcription,

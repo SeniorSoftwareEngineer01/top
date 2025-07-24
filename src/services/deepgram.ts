@@ -14,11 +14,11 @@ function getClient(): DeepgramClient {
   return deepgramClient;
 }
 
-export async function transcribeUrl(audioUrl: string): Promise<string> {
+export async function transcribeAudio(audioBuffer: Buffer): Promise<string> {
   const client = getClient();
   try {
-    const { result, error } = await client.listen.prerecorded.transcribeUrl(
-        { url: audioUrl },
+    const { result, error } = await client.listen.prerecorded.transcribeFile(
+        audioBuffer,
         { model: "nova-2", smart_format: true, language: "ar" }
     );
 
@@ -29,7 +29,7 @@ export async function transcribeUrl(audioUrl: string): Promise<string> {
     
     return result.results.channels[0].alternatives[0].transcript;
   } catch (err) {
-    console.error("Error transcribing audio from URL:", err);
+    console.error("Error transcribing audio from buffer:", err);
     throw new Error("Failed to transcribe audio.");
   }
 }
