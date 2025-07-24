@@ -40,7 +40,9 @@ export function ChatUpload({ onUpload }: ChatUploadProps) {
       } else if (file.type === 'application/zip' || file.name.endsWith('.zip')) {
         try {
           const zip = await JSZip.loadAsync(file);
-          const chatFile = zip.file('_chat.txt');
+          // Find the first .txt file in the zip, regardless of its name
+          const chatFile = Object.values(zip.files).find(file => file.name.endsWith('.txt') && !file.dir);
+          
           if (chatFile) {
             const content = await chatFile.async('string');
             onUpload(content);
@@ -48,7 +50,7 @@ export function ChatUpload({ onUpload }: ChatUploadProps) {
             toast({
               variant: 'destructive',
               title: 'Invalid ZIP File',
-              description: 'The ZIP file does not contain a "_chat.txt" file.',
+              description: 'The ZIP file does not contain a chat text file (.txt).',
             });
           }
         } catch (error) {
