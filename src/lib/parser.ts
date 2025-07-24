@@ -6,39 +6,40 @@ export interface ChatMessage {
 
 /**
  * Parses a raw string of WhatsApp chat text into an array of message objects.
- * Handles multi-line messages.
+ * Handles multi-line messages and different timestamp formats.
  * @param text The raw string content from the WhatsApp .txt export.
  * @returns An array of ChatMessage objects.
  */
 export function parseChat(text: string): ChatMessage[] {
   const messages: ChatMessage[] = [];
-  // Regex to detect a new message line, e.g., "[1/25/24, 10:00:00 AM] John Doe: Hello"
-  const messageRegex = /^\[([^\]]+)\] ([^:]+): ([\s\S]*)/;
-  
-  // Split the text into lines, but handle the case where messages themselves have newlines
+  // Regex to detect a new message line. This is a more flexible regex.
+  // It handles LTR and RTL markers, and different date/time formats.
+  const messageRegex = /^(?:\u200E|\u200F)*\[([^\]]+)\]\s*([^:]+):\s*([\s\S]*)/;
+
   const lines = text.split('\n');
   let currentMessage: ChatMessage | null = null;
 
   for (const line of lines) {
-    const match = line.match(messageRegex);
+    // We need to handle the case where the line might start with a Right-to-Left mark.
+    const sanitizedLine = line.trim().replace(/^[\u200E\u200F]/, '');
+    const match = sanitizedLine.match(messageRegex);
+    
     if (match) {
-      // If a new message is detected, push the previous one (if it exists)
       if (currentMessage) {
         messages.push({ ...currentMessage, message: currentMessage.message.trim() });
       }
-      // Start a new message object
       currentMessage = {
         timestamp: match[1],
-        author: match[2],
-        message: match[3],
+        author: match[2].trim(),
+        message: match[3].trim(),
       };
     } else if (currentMessage) {
-      // If the line does not match, it's a continuation of the previous message
+      // If the line does not match, it's a continuation of the previous message.
+      // We append the original line, not the sanitized one.
       currentMessage.message += '\n' + line;
     }
   }
 
-  // Push the last message after the loop finishes
   if (currentMessage) {
     messages.push({ ...currentMessage, message: currentMessage.message.trim() });
   }
