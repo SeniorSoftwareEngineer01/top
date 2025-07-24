@@ -3,14 +3,54 @@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { SidebarContent, SidebarHeader } from '@/components/ui/sidebar';
-import type { ChatMessage } from '@/lib/parser';
-import { MessageSquareText } from 'lucide-react';
+import type { ParsedMessage } from '@/lib/parser';
+import { File, MessageSquareText, Mic, Video } from 'lucide-react';
+import Image from 'next/image';
 
 interface ChatViewProps {
-  chat: ChatMessage[];
+  chat: ParsedMessage[];
+  mediaContent: Record<string, string>;
 }
 
-export function ChatView({ chat }: ChatViewProps) {
+const MediaMessage = ({ message, mediaUrl }: { message: ParsedMessage, mediaUrl?: string }) => {
+  if (message.type === 'text') {
+    return <p className="text-foreground/90 whitespace-pre-wrap text-right">{message.content}</p>;
+  }
+
+  if (!mediaUrl) {
+    return (
+       <div className="flex items-center gap-2 rounded-md bg-muted p-3">
+          <File className="h-6 w-6 text-muted-foreground" />
+          <div>
+            <p className="font-semibold">{message.fileName}</p>
+            <p className="text-xs text-muted-foreground">Media not available</p>
+          </div>
+       </div>
+    );
+  }
+  
+  switch (message.type) {
+    case 'image':
+      return <Image src={mediaUrl} alt={message.fileName || 'Chat image'} width={250} height={250} className="rounded-lg object-cover" />;
+    case 'audio':
+      return <audio controls src={mediaUrl} className="w-full" />;
+    case 'video':
+      return <video controls src={mediaUrl} className="max-w-full rounded-lg" />;
+    default:
+       return (
+         <div className="flex items-center gap-2 rounded-md bg-muted p-3">
+            <File className="h-6 w-6 text-muted-foreground" />
+            <div>
+                <p className="font-semibold">{message.fileName}</p>
+                 <a href={mediaUrl} download={message.fileName} className="text-sm text-primary hover:underline">Download</a>
+            </div>
+         </div>
+       );
+  }
+};
+
+
+export function ChatView({ chat, mediaContent }: ChatViewProps) {
   return (
     <>
       <SidebarHeader>
@@ -29,7 +69,7 @@ export function ChatView({ chat }: ChatViewProps) {
                   <p className="font-semibold text-primary/80 truncate">{msg.author}</p>
                   <p className="text-xs text-muted-foreground whitespace-nowrap">{msg.timestamp}</p>
                 </div>
-                <p className="text-foreground/90 whitespace-pre-wrap text-right">{msg.message}</p>
+                 <MediaMessage message={msg} mediaUrl={msg.fileName ? mediaContent[msg.fileName] : undefined} />
               </div>
             ))}
           </div>

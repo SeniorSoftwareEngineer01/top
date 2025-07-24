@@ -7,19 +7,22 @@ import { QueryInterface, type AIMessage } from '@/components/query-interface';
 import { Sidebar, SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
-import { parseChat, type ChatMessage as ParsedChatMessage } from '@/lib/parser';
+import { parseChat, type ParsedMessage } from '@/lib/parser';
 import { getAiResponse } from './actions';
 
 export default function Home() {
   const [chatText, setChatText] = useState<string | null>(null);
-  const [parsedChat, setParsedChat] = useState<ParsedChatMessage[]>([]);
+  const [parsedChat, setParsedChat] = useState<ParsedMessage[]>([]);
   const [conversation, setConversation] = useState<AIMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [mediaContent, setMediaContent] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
-  const handleUpload = (fileContent: string) => {
+  const handleUpload = (fileContent: string, media: Record<string, ArrayBuffer>) => {
     try {
-      const parsed = parseChat(fileContent);
+      const mediaFiles = Object.keys(media);
+      const parsed = parseChat(fileContent, mediaFiles);
+
       if (parsed.length === 0) {
         toast({
           variant: 'destructive',
@@ -28,6 +31,15 @@ export default function Home() {
         });
         return;
       }
+      
+      const mediaUrls: Record<string, string> = {};
+      for (const fileName in media) {
+        const buffer = media[fileName];
+        const blob = new Blob([buffer]);
+        mediaUrls[fileName] = URL.createObjectURL(blob);
+      }
+      setMediaContent(mediaUrls);
+
       setChatText(fileContent);
       setParsedChat(parsed);
       getInitialSummary(fileContent);
@@ -90,7 +102,7 @@ export default function Home() {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen">
-        <SidebarInset>
+         <SidebarInset>
           <QueryInterface
             conversation={conversation}
             onQuery={handleQuery}
@@ -98,7 +110,7 @@ export default function Home() {
           />
         </SidebarInset>
         <Sidebar side="right">
-          <ChatView chat={parsedChat} />
+          <ChatView chat={parsedChat} mediaContent={mediaContent} />
         </Sidebar>
       </div>
       <Toaster />

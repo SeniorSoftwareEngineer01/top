@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import JSZip from 'jszip';
 
 interface ChatUploadProps {
-  onUpload: (fileContent: string) => void;
+  onUpload: (fileContent: string, media: Record<string, ArrayBuffer>) => void;
 }
 
 export function ChatUpload({ onUpload }: ChatUploadProps) {
@@ -25,7 +25,7 @@ export function ChatUpload({ onUpload }: ChatUploadProps) {
         const reader = new FileReader();
         reader.onload = (e) => {
           const content = e.target?.result as string;
-          onUpload(content);
+          onUpload(content, {});
           setIsUploading(false);
         };
         reader.onerror = () => {
@@ -40,12 +40,18 @@ export function ChatUpload({ onUpload }: ChatUploadProps) {
       } else if (file.type === 'application/zip' || file.name.endsWith('.zip')) {
         try {
           const zip = await JSZip.loadAsync(file);
-          // Find the first .txt file in the zip, regardless of its name
           const chatFile = Object.values(zip.files).find(file => file.name.endsWith('.txt') && !file.dir);
           
           if (chatFile) {
-            const content = await chatFile.async('string');
-            onUpload(content);
+            const chatContent = await chatFile.async('string');
+            const mediaFiles: Record<string, ArrayBuffer> = {};
+            
+            for (const fileName in zip.files) {
+              if (!zip.files[fileName].dir && !fileName.endsWith('.txt')) {
+                 mediaFiles[fileName] = await zip.files[fileName].async('arraybuffer');
+              }
+            }
+            onUpload(chatContent, mediaFiles);
           } else {
             toast({
               variant: 'destructive',
