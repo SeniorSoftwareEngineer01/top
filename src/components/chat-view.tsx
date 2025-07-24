@@ -10,7 +10,7 @@ import Image from 'next/image';
 
 interface ChatViewProps {
   chat: ParsedMessage[];
-  mediaContent: Record<string, string>;
+  mediaContent: Record<string, { url: string; buffer: ArrayBuffer }>;
 }
 
 const MediaMessage = ({ message, mediaUrl }: { message: ParsedMessage; mediaUrl?: string }) => {
@@ -82,17 +82,18 @@ export function ChatView({ chat, mediaContent }: ChatViewProps) {
           <div className="space-y-2 py-4">
             {chat.map((msg, index) => {
               const userMessage = isUser(msg.author);
+              const mediaUrl = msg.fileName ? mediaContent[msg.fileName]?.url : undefined;
               return (
                 <div
                   key={index}
-                  className={cn('flex items-end gap-2', {
+                  className={cn('flex w-full items-end gap-2', {
                     'justify-end': userMessage,
                     'justify-start': !userMessage,
                   })}
                 >
                   <div
                     className={cn(
-                      'max-w-[75%] rounded-lg px-3 py-2 shadow-sm',
+                      'max-w-[75%] rounded-lg px-3 py-2 shadow-sm flex flex-col',
                       userMessage
                         ? 'rounded-br-none bg-[hsl(var(--chat-bubble-user-background))] text-[hsl(var(--chat-bubble-user-foreground))]'
                         : 'rounded-bl-none bg-[hsl(var(--chat-bubble-other-background))] text-[hsl(var(--chat-bubble-other-foreground))]'
@@ -104,17 +105,17 @@ export function ChatView({ chat, mediaContent }: ChatViewProps) {
                        </p>
                     )}
                     
-                    {msg.type === 'text' && (
-                        <p className="text-base whitespace-pre-wrap">{msg.content}</p>
-                    )}
-
                     {(msg.type !== 'text' && msg.fileName) && (
                         <div className='pt-1'>
-                             <MediaMessage message={msg} mediaUrl={mediaContent[msg.fileName]} />
+                             <MediaMessage message={msg} mediaUrl={mediaUrl} />
                         </div>
                     )}
+                    
+                    {msg.content && (
+                        <p className="text-base whitespace-pre-wrap" dir="auto">{msg.content}</p>
+                    )}
 
-                    <p className="mt-1 text-right text-xs text-foreground/50">{msg.timestamp}</p>
+                    <p className="mt-1 text-right text-xs text-foreground/50 self-end">{msg.timestamp}</p>
                   </div>
                 </div>
               );

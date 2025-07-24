@@ -1,11 +1,11 @@
 'use server';
 
-import { analyzeWhatsappChat } from "@/ai/flows/analyze-whatsapp-chat";
+import { analyzeWhatsappChat, type AnalyzeWhatsappChatInput } from "@/ai/flows/analyze-whatsapp-chat";
 import { textToSpeech as ttsFlow, type TextToSpeechInput, type TextToSpeechOutput } from "@/ai/flows/text-to-speech";
 
-export async function getAiResponse(chatLog: string, query: string): Promise<string> {
+export async function getAiResponse(input: AnalyzeWhatsappChatInput): Promise<string> {
   try {
-    const result = await analyzeWhatsappChat({ chatLog, query });
+    const result = await analyzeWhatsappChat(input);
     return result.answer;
   } catch (error) {
     console.error("Error in getAiResponse:", error);

@@ -16,6 +16,10 @@ const AnalyzeWhatsappChatInputSchema = z.object({
     .string()
     .describe('The complete WhatsApp chat log as a single string.'),
   query: z.string().describe('The question about the chat log.'),
+  images: z.array(z.object({
+    fileName: z.string(),
+    dataUri: z.string().describe("An image from the chat, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
+  })).describe('An array of images present in the chat.').optional(),
 });
 export type AnalyzeWhatsappChatInput = z.infer<typeof AnalyzeWhatsappChatInputSchema>;
 
@@ -32,12 +36,19 @@ const prompt = ai.definePrompt({
   name: 'analyzeWhatsappChatPrompt',
   input: {schema: AnalyzeWhatsappChatInputSchema},
   output: {schema: AnalyzeWhatsappChatOutputSchema},
-  prompt: `You are an expert in analyzing WhatsApp chat logs.
+  prompt: `You are an expert in analyzing WhatsApp chat logs, including text and images.
 
-  Based on the provided chat log, answer the following question as accurately as possible.
+  Based on the provided chat log and any included images, answer the following question as accurately as possible.
 
   Chat Log:
   {{chatLog}}
+
+  {{#if images}}
+  Images included in the chat:
+  {{#each images}}
+  - {{fileName}}: {{media url=dataUri}}
+  {{/each}}
+  {{/if}}
 
   Question:
   {{query}}
