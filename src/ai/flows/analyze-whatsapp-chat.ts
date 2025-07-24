@@ -20,6 +20,10 @@ const AnalyzeWhatsappChatInputSchema = z.object({
     fileName: z.string(),
     dataUri: z.string().describe("An image from the chat, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
   })).describe('An array of images present in the chat.').optional(),
+  audioTranscriptions: z.array(z.object({
+      fileName: z.string(),
+      transcription: z.string(),
+  })).describe('An array of audio transcriptions from the chat.').optional(),
 });
 export type AnalyzeWhatsappChatInput = z.infer<typeof AnalyzeWhatsappChatInputSchema>;
 
@@ -36,9 +40,9 @@ const prompt = ai.definePrompt({
   name: 'analyzeWhatsappChatPrompt',
   input: {schema: AnalyzeWhatsappChatInputSchema},
   output: {schema: AnalyzeWhatsappChatOutputSchema},
-  prompt: `You are an expert in analyzing WhatsApp chat logs, including text and images.
+  prompt: `You are an expert in analyzing WhatsApp chat logs, including text, images, and audio transcriptions.
 
-  Based on the provided chat log and any included images, answer the following question as accurately as possible.
+  Based on the provided chat log and any included media, answer the following question as accurately as possible.
 
   Chat Log:
   {{chatLog}}
@@ -47,6 +51,13 @@ const prompt = ai.definePrompt({
   Images included in the chat:
   {{#each images}}
   - {{fileName}}: {{media url=dataUri}}
+  {{/each}}
+  {{/if}}
+
+  {{#if audioTranscriptions}}
+  Audio Transcriptions from the chat:
+  {{#each audioTranscriptions}}
+  - Transcription for {{fileName}}: {{transcription}}
   {{/each}}
   {{/if}}
 

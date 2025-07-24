@@ -8,7 +8,7 @@ import { Sidebar, SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
 import { parseChat, type ParsedMessage, type MessageType } from '@/lib/parser';
-import { getAiResponse } from './actions';
+import { getAiResponse, transcribeAudio } from './actions';
 
 // Helper to convert ArrayBuffer to Base64 Data URI
 const arrayBufferToDataUri = (buffer: ArrayBuffer, type: string) => {
@@ -140,10 +140,24 @@ export default function Home() {
             }
         });
 
+      const audioMessages = parsedChat.filter(msg => msg.type === 'audio' && msg.fileName && mediaContent[msg.fileName]);
+      const audioTranscriptions = await Promise.all(
+        audioMessages.map(async (msg) => {
+            const media = mediaContent[msg.fileName!];
+            const transcription = await transcribeAudio({ audioUrl: media.url });
+            return {
+                fileName: msg.fileName!,
+                transcription: transcription,
+            };
+        })
+      );
+
+
       const result = await getAiResponse({
           chatLog: chatText,
           query,
-          images: imagesToAnalyze
+          images: imagesToAnalyze,
+          audioTranscriptions: audioTranscriptions,
       });
 
       setConversation([...newConversation, { role: 'assistant', content: result }]);
