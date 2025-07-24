@@ -14,7 +14,7 @@ import wav from 'wav';
 
 const TextToSpeechInputSchema = z.object({
   text: z.string().describe('The text to convert to speech.'),
-  voice: z.string().describe('The prebuilt voice to use.').optional().default('Alloy'),
+  voice: z.string().describe('The prebuilt voice to use.').optional().default('Algenib'),
   language: z.string().describe('The language of the text.').optional().default('en-US'),
 });
 export type TextToSpeechInput = z.infer<typeof TextToSpeechInputSchema>;
@@ -43,8 +43,7 @@ const textToSpeechFlow = ai.defineFlow(
         responseModalities: ['AUDIO'],
         speechConfig: {
           voiceConfig: {
-            // @ts-ignore - The `prebuiltVoiceConfig` type seems to be expecting a different shape.
-            prebuiltVoiceConfig: { voiceName: input.voice },
+            prebuiltVoiceConfig: { voiceName: input.voice! },
           },
         },
       },

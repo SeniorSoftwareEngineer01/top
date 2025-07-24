@@ -29,7 +29,7 @@ interface TtsDialogProps {
 }
 
 export function TtsDialog({ isOpen, onOpenChange, textToSpeak }: TtsDialogProps) {
-  const [voice, setVoice] = useState('Alloy');
+  const [voice, setVoice] = useState('Algenib');
   const [language, setLanguage] = useState('ar');
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -90,12 +90,16 @@ export function TtsDialog({ isOpen, onOpenChange, textToSpeak }: TtsDialogProps)
                 <SelectValue placeholder="Select a voice" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Alloy">Alloy</SelectItem>
-                <SelectItem value="Echo">Echo</SelectItem>
-                <SelectItem value="Fable">Fable</SelectItem>
-                <SelectItem value="Onyx">Onyx</SelectItem>
-                <SelectItem value="Nova">Nova</SelectItem>
-                <SelectItem value="Shimmer">Shimmer</SelectItem>
+                <SelectItem value="Algenib">Algenib</SelectItem>
+                <SelectItem value="Achernar">Achernar</SelectItem>
+                <SelectItem value="Antares">Antares</SelectItem>
+                <SelectItem value="Canopus">Canopus</SelectItem>
+                <SelectItem value="Deneb">Deneb</SelectItem>
+                <SelectItem value="Fomalhaut">Fomalhaut</SelectItem>
+                <SelectItem value="Hadar">Hadar</SelectItem>
+                <SelectItem value="Miaplacidus">Miaplacidus</SelectItem>
+                <SelectItem value="Pollux">Pollux</SelectItem>
+                <SelectItem value="Procyon">Procyon</SelectItem>
               </SelectContent>
             </Select>
           </div>
