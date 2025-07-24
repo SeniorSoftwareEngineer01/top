@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * @fileOverview A flow for transcribing audio files using the Deepgram API.
+ * @fileOverview A flow for transcribing audio files using the Gemini model.
  *
  * - transcribeAudio - Transcribes an audio file buffer.
  * - TranscribeAudioInput - The input type for the transcribeAudio function.
@@ -9,11 +9,11 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { transcribeAudio as transcribeAudioService } from '@/services/deepgram';
 import { z } from 'genkit';
 
 const TranscribeAudioInputSchema = z.object({
-  audioBuffer: z.string().describe("The audio file's ArrayBuffer encoded as a Base64 string."),
+  audioDataUri: z.string().describe("The audio file as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
+  language: z.string().describe('The language of the audio.').optional().default('ar'),
 });
 export type TranscribeAudioInput = z.infer<typeof TranscribeAudioInputSchema>;
 
@@ -22,9 +22,19 @@ const TranscribeAudioOutputSchema = z.object({
 });
 export type TranscribeAudioOutput = z.infer<typeof TranscribeAudioOutputSchema>;
 
+
 export async function transcribeAudio(input: TranscribeAudioInput): Promise<TranscribeAudioOutput> {
   return transcribeAudioFlow(input);
 }
+
+const transcriptionPrompt = ai.definePrompt({
+    name: 'transcriptionPrompt',
+    input: { schema: TranscribeAudioInputSchema },
+    prompt: `Transcribe the following audio file. The language is {{language}}. Respond only with the transcribed text.
+  
+  Audio: {{media url=audioDataUri}}`,
+});
+
 
 const transcribeAudioFlow = ai.defineFlow(
   {
@@ -34,9 +44,11 @@ const transcribeAudioFlow = ai.defineFlow(
   },
   async (input) => {
     try {
-      const buffer = Buffer.from(input.audioBuffer, 'base64');
-      const transcription = await transcribeAudioService(buffer);
-      return { transcription };
+      const { text } = await ai.generate({
+        prompt: `Transcribe the following audio file. The language is ${input.language}. Respond only with the transcribed text.`,
+        media: { url: input.audioDataUri }
+      });
+      return { transcription: text };
     } catch (error) {
       console.error('Error in transcribeAudioFlow:', error);
       return { transcription: '[Audio transcription failed]' };
