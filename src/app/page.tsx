@@ -45,7 +45,9 @@ export default function Home() {
     setIsLoading(true);
     setConversation([]);
     try {
-      const result = await getAiResponse(content, "Provide a concise, bulleted summary of the key points in this chat. Start with 'Here is a summary of your chat:'");
+      // Use a smaller portion of the chat for the initial summary to avoid context length issues.
+      const summaryContent = content.length > 12000 ? content.substring(0, 12000) : content;
+      const result = await getAiResponse(summaryContent, "Provide a concise, bulleted summary of the key points in this chat. Start with 'Here is a summary of your chat:'");
       setConversation([{ role: 'assistant', content: result }]);
     } catch (error) {
       toast({
