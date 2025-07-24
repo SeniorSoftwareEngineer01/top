@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { UploadCloud } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import JSZip from 'jszip';
 
 interface ChatUploadProps {
   onUpload: (fileContent: string) => void;
@@ -16,33 +17,57 @@ export function ChatUpload({ onUpload }: ChatUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.type !== 'text/plain') {
+      setIsUploading(true);
+      if (file.type === 'text/plain') {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const content = e.target?.result as string;
+          onUpload(content);
+          setIsUploading(false);
+        };
+        reader.onerror = () => {
+          toast({
+            variant: 'destructive',
+            title: 'File Read Error',
+            description: 'There was an error reading your file. Please try again.',
+          });
+          setIsUploading(false);
+        };
+        reader.readAsText(file);
+      } else if (file.type === 'application/zip' || file.name.endsWith('.zip')) {
+        try {
+          const zip = await JSZip.loadAsync(file);
+          const chatFile = zip.file('_chat.txt');
+          if (chatFile) {
+            const content = await chatFile.async('string');
+            onUpload(content);
+          } else {
+            toast({
+              variant: 'destructive',
+              title: 'Invalid ZIP File',
+              description: 'The ZIP file does not contain a "_chat.txt" file.',
+            });
+          }
+        } catch (error) {
+          toast({
+            variant: 'destructive',
+            title: 'ZIP Read Error',
+            description: 'There was an error reading the ZIP file. Please try again.',
+          });
+        } finally {
+          setIsUploading(false);
+        }
+      } else {
         toast({
           variant: 'destructive',
           title: 'Invalid File Type',
-          description: 'Please upload a .txt file exported from WhatsApp.',
+          description: 'Please upload a .txt or .zip file exported from WhatsApp.',
         });
-        return;
+        setIsUploading(false);
       }
-      setIsUploading(true);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const content = e.target?.result as string;
-        onUpload(content);
-        setIsUploading(false);
-      };
-      reader.onerror = () => {
-        toast({
-          variant: 'destructive',
-          title: 'File Read Error',
-          description: 'There was an error reading your file. Please try again.',
-        });
-        setIsUploading(false);
-      };
-      reader.readAsText(file);
     }
   };
 
@@ -59,7 +84,7 @@ export function ChatUpload({ onUpload }: ChatUploadProps) {
           </div>
           <CardTitle className="text-2xl font-bold">WhatsAnalyzer</CardTitle>
           <CardDescription className="text-muted-foreground">
-            Upload your exported WhatsApp chat file (.txt) to begin.
+            Upload your exported WhatsApp chat file (.txt or .zip) to begin.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -68,7 +93,7 @@ export function ChatUpload({ onUpload }: ChatUploadProps) {
             ref={fileInputRef}
             onChange={handleFileChange}
             className="hidden"
-            accept=".txt"
+            accept=".txt,.zip,application/zip"
             disabled={isUploading}
           />
           <Button onClick={handleButtonClick} className="w-full" disabled={isUploading}>
