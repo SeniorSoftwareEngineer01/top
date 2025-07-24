@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { Bot, Send, User } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { TtsDialog } from './tts-dialog';
 
 export interface AIMessage {
   role: 'user' | 'assistant';
@@ -29,6 +30,7 @@ const LoadingIndicator = () => (
 
 export function QueryInterface({ conversation, onQuery, isLoading }: QueryInterfaceProps) {
   const [query, setQuery] = useState('');
+  const [isTtsDialogOpen, setIsTtsDialogOpen] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -42,8 +44,14 @@ export function QueryInterface({ conversation, onQuery, isLoading }: QueryInterf
 
   const handleQuerySubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (query.trim() && !isLoading) {
-      onQuery(query.trim());
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery || isLoading) return;
+
+    if (trimmedQuery === '.stt') {
+      setIsTtsDialogOpen(true);
+      setQuery('');
+    } else {
+      onQuery(trimmedQuery);
       setQuery('');
     }
   };
@@ -54,8 +62,16 @@ export function QueryInterface({ conversation, onQuery, isLoading }: QueryInterf
       handleQuerySubmit(e as unknown as React.FormEvent);
     }
   };
+  
+  const lastAssistantMessage = conversation.filter(m => m.role === 'assistant').pop()?.content || '';
 
   return (
+    <>
+    <TtsDialog 
+      isOpen={isTtsDialogOpen}
+      onOpenChange={setIsTtsDialogOpen}
+      textToSpeak={lastAssistantMessage}
+    />
     <div className="flex h-screen flex-col bg-muted/30">
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full" ref={scrollAreaRef}>
@@ -126,5 +142,6 @@ export function QueryInterface({ conversation, onQuery, isLoading }: QueryInterf
         </div>
       </div>
     </div>
+    </>
   );
 }

@@ -1,6 +1,7 @@
 'use server';
 
 import { analyzeWhatsappChat } from "@/ai/flows/analyze-whatsapp-chat";
+import { textToSpeech as ttsFlow, type TextToSpeechInput, type TextToSpeechOutput } from "@/ai/flows/text-to-speech";
 
 export async function getAiResponse(chatLog: string, query: string): Promise<string> {
   try {
@@ -10,4 +11,15 @@ export async function getAiResponse(chatLog: string, query: string): Promise<str
     console.error("Error in getAiResponse:", error);
     throw new Error("Failed to get a response from the AI model.");
   }
+}
+
+
+export async function textToSpeech(input: TextToSpeechInput): Promise<TextToSpeechOutput> {
+    try {
+      const result = await ttsFlow(input);
+      return result;
+    } catch (error) {
+        console.error("Error in textToSpeech action:", error);
+        throw new Error("Failed to convert text to speech.");
+    }
 }

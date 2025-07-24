@@ -47,7 +47,7 @@ export default function Home() {
     try {
       // Use a smaller portion of the chat for the initial summary to avoid context length issues.
       const summaryContent = content.length > 12000 ? content.substring(0, 12000) : content;
-      const result = await getAiResponse(summaryContent, "Provide a concise, bulleted summary of the key points in this chat. Start with 'Here is a summary of your chat:'");
+      const result = await getAiResponse(summaryContent, "قدم ملخصًا موجزًا ​​ومرقمًا للنقاط الرئيسية في هذه الدردشة. ابدأ بـ 'إليك ملخص الدردشة:'");
       setConversation([{ role: 'assistant', content: result }]);
     } catch (error) {
       toast({
