@@ -11,6 +11,7 @@ import Image from 'next/image';
 interface ChatViewProps {
   chat: ParsedMessage[];
   mediaContent: Record<string, { url: string; buffer: ArrayBuffer }>;
+  onMessageDoubleClick: (message: ParsedMessage) => void;
 }
 
 const MediaMessage = ({ message, mediaUrl }: { message: ParsedMessage; mediaUrl?: string }) => {
@@ -49,7 +50,7 @@ const MediaMessage = ({ message, mediaUrl }: { message: ParsedMessage; mediaUrl?
   }
 };
 
-export function ChatView({ chat, mediaContent }: ChatViewProps) {
+export function ChatView({ chat, mediaContent, onMessageDoubleClick }: ChatViewProps) {
   // A simple way to assign a color to each author
   const authorColors = new Map<string, string>();
   const colors = ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c'];
@@ -90,10 +91,11 @@ export function ChatView({ chat, mediaContent }: ChatViewProps) {
                     'justify-end': userMessage,
                     'justify-start': !userMessage,
                   })}
+                  onDoubleClick={() => onMessageDoubleClick(msg)}
                 >
                   <div
                     className={cn(
-                      'max-w-[75%] rounded-lg px-3 py-2 shadow-sm flex flex-col',
+                      'max-w-[75%] rounded-lg px-3 py-2 shadow-sm flex flex-col cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]',
                       userMessage
                         ? 'rounded-br-none bg-[hsl(var(--chat-bubble-user-background))] text-[hsl(var(--chat-bubble-user-foreground))]'
                         : 'rounded-bl-none bg-[hsl(var(--chat-bubble-other-background))] text-[hsl(var(--chat-bubble-other-foreground))]'

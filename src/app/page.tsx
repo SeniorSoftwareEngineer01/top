@@ -60,6 +60,7 @@ export default function Home() {
   const [conversation, setConversation] = useState<AIMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [mediaContent, setMediaContent] = useState<Record<string, { url: string; buffer: ArrayBuffer }>>({});
+  const [queryInputValue, setQueryInputValue] = useState('');
   const { toast } = useToast();
 
   const handleUpload = (fileContent: string, media: Record<string, ArrayBuffer>) => {
@@ -127,6 +128,7 @@ export default function Home() {
     const newConversation: AIMessage[] = [...conversation, { role: 'user', content: query }];
     setConversation(newConversation);
     setIsLoading(true);
+    setQueryInputValue('');
 
     try {
       const imagesToAnalyze = parsedChat
@@ -174,6 +176,20 @@ export default function Home() {
       setIsLoading(false);
     }
   };
+  
+  const handleMessageDoubleClick = (message: ParsedMessage) => {
+    let quote = '';
+    if (message.content) {
+      quote = `"${message.content}"`;
+    } else if (message.fileName) {
+      quote = `[${message.type} file: ${message.fileName}]`;
+    }
+    
+    if (quote) {
+      setQueryInputValue(prev => prev ? `${prev}\n${quote}` : `${quote} `);
+    }
+  };
+
 
   if (!chatText) {
     return <ChatUpload onUpload={handleUpload} />;
@@ -187,10 +203,16 @@ export default function Home() {
             conversation={conversation}
             onQuery={handleQuery}
             isLoading={isLoading}
+            inputValue={queryInputValue}
+            setInputValue={setQueryInputValue}
           />
         </SidebarInset>
         <Sidebar side="right">
-          <ChatView chat={parsedChat} mediaContent={mediaContent} />
+          <ChatView 
+            chat={parsedChat} 
+            mediaContent={mediaContent} 
+            onMessageDoubleClick={handleMessageDoubleClick}
+          />
         </Sidebar>
       </div>
       <Toaster />

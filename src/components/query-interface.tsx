@@ -18,6 +18,8 @@ interface QueryInterfaceProps {
   conversation: AIMessage[];
   onQuery: (query: string) => void;
   isLoading: boolean;
+  inputValue: string;
+  setInputValue: (value: string) => void;
 }
 
 const LoadingIndicator = () => (
@@ -28,10 +30,10 @@ const LoadingIndicator = () => (
   </div>
 );
 
-export function QueryInterface({ conversation, onQuery, isLoading }: QueryInterfaceProps) {
-  const [query, setQuery] = useState('');
+export function QueryInterface({ conversation, onQuery, isLoading, inputValue, setInputValue }: QueryInterfaceProps) {
   const [isTtsDialogOpen, setIsTtsDialogOpen] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -42,17 +44,26 @@ export function QueryInterface({ conversation, onQuery, isLoading }: QueryInterf
     }
   }, [conversation, isLoading]);
 
+  useEffect(() => {
+    if (inputValue && textAreaRef.current) {
+      textAreaRef.current.focus();
+      // Move cursor to the end
+      const len = inputValue.length;
+      textAreaRef.current.setSelectionRange(len, len);
+    }
+  }, [inputValue]);
+
+
   const handleQuerySubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmedQuery = query.trim();
+    const trimmedQuery = inputValue.trim();
     if (!trimmedQuery || isLoading) return;
 
     if (trimmedQuery === '.stt') {
       setIsTtsDialogOpen(true);
-      setQuery('');
+      setInputValue('');
     } else {
       onQuery(trimmedQuery);
-      setQuery('');
     }
   };
   
@@ -122,8 +133,9 @@ export function QueryInterface({ conversation, onQuery, isLoading }: QueryInterf
         <div className="mx-auto max-w-3xl p-4">
           <form onSubmit={handleQuerySubmit} className="relative">
             <Textarea
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              ref={textAreaRef}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask a question about the chat..."
               className="pr-20 min-h-[52px] resize-none"
@@ -134,7 +146,7 @@ export function QueryInterface({ conversation, onQuery, isLoading }: QueryInterf
               type="submit"
               size="icon"
               className="absolute right-3 top-1/2 -translate-y-1/2"
-              disabled={isLoading || !query.trim()}
+              disabled={isLoading || !inputValue.trim()}
             >
               <Send className="h-5 w-5" />
             </Button>
