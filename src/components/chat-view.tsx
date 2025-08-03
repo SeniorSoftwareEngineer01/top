@@ -5,52 +5,17 @@ import { Separator } from '@/components/ui/separator';
 import { SidebarContent, SidebarHeader } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 import type { ParsedMessage } from '@/lib/parser';
-import { File, MessageSquareText } from 'lucide-react';
-import Image from 'next/image';
+import { MessageSquareText } from 'lucide-react';
+import { MediaMessage } from './media-message';
 
 interface ChatViewProps {
   chat: ParsedMessage[];
   mediaContent: Record<string, { url: string; buffer: ArrayBuffer }>;
-  onMessageDoubleClick: (message: ParsedMessage) => void;
+  onMessageSelect: (message: ParsedMessage) => void;
+  selectedMessage: ParsedMessage | null;
 }
 
-const MediaMessage = ({ message, mediaUrl }: { message: ParsedMessage; mediaUrl?: string }) => {
-  if (!mediaUrl) {
-    if (message.type === 'media_missing') {
-       return <p className="text-sm italic text-muted-foreground">{message.content}</p>;
-    }
-    return (
-      <div className="flex items-center gap-2 rounded-md bg-black/10 p-3 dark:bg-white/10">
-        <File className="h-6 w-6" />
-        <div>
-          <p className="font-semibold">{message.fileName}</p>
-          <p className="text-xs">Media not available</p>
-        </div>
-      </div>
-    );
-  }
-
-  switch (message.type) {
-    case 'image':
-      return <Image src={mediaUrl} alt={message.fileName || 'Chat image'} width={300} height={300} className="rounded-lg object-cover" />;
-    case 'audio':
-      return <audio controls src={mediaUrl} className="w-full" />;
-    case 'video':
-      return <video controls src={mediaUrl} className="max-w-full rounded-lg" />;
-    default:
-      return (
-        <div className="flex items-center gap-2 rounded-md bg-black/10 p-3 dark:bg-white/10">
-          <File className="h-6 w-6" />
-          <div>
-            <p className="font-semibold">{message.fileName}</p>
-            <a href={mediaUrl} download={message.fileName} className="text-sm text-primary hover:underline">Download</a>
-          </div>
-        </div>
-      );
-  }
-};
-
-export function ChatView({ chat, mediaContent, onMessageDoubleClick }: ChatViewProps) {
+export function ChatView({ chat, mediaContent, onMessageSelect, selectedMessage }: ChatViewProps) {
   // A simple way to assign a color to each author
   const authorColors = new Map<string, string>();
   const colors = ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c'];
@@ -84,6 +49,8 @@ export function ChatView({ chat, mediaContent, onMessageDoubleClick }: ChatViewP
             {chat.map((msg, index) => {
               const userMessage = isUser(msg.author);
               const mediaUrl = msg.fileName ? mediaContent[msg.fileName]?.url : undefined;
+              const isSelected = selectedMessage?.timestamp === msg.timestamp && selectedMessage?.content === msg.content;
+              
               return (
                 <div
                   key={index}
@@ -91,14 +58,15 @@ export function ChatView({ chat, mediaContent, onMessageDoubleClick }: ChatViewP
                     'justify-end': userMessage,
                     'justify-start': !userMessage,
                   })}
-                  onDoubleClick={() => onMessageDoubleClick(msg)}
+                  onDoubleClick={() => onMessageSelect(msg)}
                 >
                   <div
                     className={cn(
                       'max-w-[75%] rounded-lg px-3 py-2 shadow-sm flex flex-col cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]',
                       userMessage
                         ? 'rounded-br-none bg-[hsl(var(--chat-bubble-user-background))] text-[hsl(var(--chat-bubble-user-foreground))]'
-                        : 'rounded-bl-none bg-[hsl(var(--chat-bubble-other-background))] text-[hsl(var(--chat-bubble-other-foreground))]'
+                        : 'rounded-bl-none bg-[hsl(var(--chat-bubble-other-background))] text-[hsl(var(--chat-bubble-other-foreground))]',
+                      isSelected && 'ring-2 ring-primary ring-offset-2 ring-offset-background'
                     )}
                   >
                     {!userMessage && (
@@ -107,11 +75,11 @@ export function ChatView({ chat, mediaContent, onMessageDoubleClick }: ChatViewP
                        </p>
                     )}
                     
-                    {(msg.type !== 'text' && msg.fileName) && (
+                    {(msg.type !== 'text' && msg.fileName) ? (
                         <div className='pt-1'>
                              <MediaMessage message={msg} mediaUrl={mediaUrl} />
                         </div>
-                    )}
+                    ) : null}
                     
                     {msg.content && (
                         <p className="text-base whitespace-pre-wrap" dir="auto">{msg.content}</p>

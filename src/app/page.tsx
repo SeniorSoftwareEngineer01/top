@@ -7,8 +7,9 @@ import { QueryInterface, type AIMessage } from '@/components/query-interface';
 import { Sidebar, SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
-import { parseChat, type ParsedMessage, type MessageType } from '@/lib/parser';
-import { getAiResponse, transcribeAudio } from './actions';
+import { parseChat, type ParsedMessage } from '@/lib/parser';
+import { getAiResponse, transcribeAudio, getContextualAiResponse } from './actions';
+import { AnalysisView } from '@/components/analysis-view';
 
 // Helper to convert ArrayBuffer to Base64 Data URI
 const arrayBufferToDataUri = (buffer: ArrayBuffer, type: string) => {
@@ -62,6 +63,7 @@ export default function Home() {
   const [mediaContent, setMediaContent] = useState<Record<string, { url: string; buffer: ArrayBuffer }>>({});
   const [queryInputValue, setQueryInputValue] = useState('');
   const { toast } = useToast();
+  const [selectedMessage, setSelectedMessage] = useState<ParsedMessage | null>(null);
 
   const handleUpload = (fileContent: string, media: Record<string, ArrayBuffer>) => {
     try {
@@ -106,7 +108,6 @@ export default function Home() {
     setIsLoading(true);
     setConversation([]);
     try {
-      // Use a smaller portion of the chat for the initial summary to avoid context length issues.
       const summaryContent = content.length > 12000 ? content.substring(0, 12000) : content;
       const result = await getAiResponse({ chatLog: summaryContent, query: "قدم ملخصًا موجزًا ​​ومرقمًا للنقاط الرئيسية في هذه الدردشة. ابدأ بـ 'إليك ملخص الدردشة:'"});
       setConversation([{ role: 'assistant', content: result }]);
@@ -177,19 +178,13 @@ export default function Home() {
     }
   };
   
-  const handleMessageDoubleClick = (message: ParsedMessage) => {
-    let quote = '';
-    if (message.content) {
-      quote = `"${message.content}"`;
-    } else if (message.fileName) {
-      quote = `[${message.type} file: ${message.fileName}]`;
-    }
-    
-    if (quote) {
-      setQueryInputValue(prev => prev ? `${prev}\n${quote}` : `${quote} `);
+  const handleMessageSelection = (message: ParsedMessage) => {
+    if (selectedMessage && selectedMessage.timestamp === message.timestamp && selectedMessage.content === message.content) {
+      setSelectedMessage(null); // Deselect if the same message is clicked again
+    } else {
+      setSelectedMessage(message);
     }
   };
-
 
   if (!chatText) {
     return <ChatUpload onUpload={handleUpload} />;
@@ -198,7 +193,13 @@ export default function Home() {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen">
-         <SidebarInset>
+        {selectedMessage ? (
+          <AnalysisView 
+            message={selectedMessage}
+            mediaContent={mediaContent}
+            onClose={() => setSelectedMessage(null)}
+          />
+        ) : (
           <QueryInterface
             conversation={conversation}
             onQuery={handleQuery}
@@ -206,12 +207,13 @@ export default function Home() {
             inputValue={queryInputValue}
             setInputValue={setQueryInputValue}
           />
-        </SidebarInset>
+        )}
         <Sidebar side="right">
           <ChatView 
             chat={parsedChat} 
             mediaContent={mediaContent} 
-            onMessageDoubleClick={handleMessageDoubleClick}
+            onMessageSelect={handleMessageSelection}
+            selectedMessage={selectedMessage}
           />
         </Sidebar>
       </div>
