@@ -38,8 +38,14 @@ export async function getContextualAiResponse(message: ParsedMessage, mediaDataU
         }
         if (message.type === 'audio' && message.fileName && mediaDataUri) {
             input.chatLog += `The user has selected an audio message named "${message.fileName}". The transcription is provided below.\n\n`;
-            const transcriptionResult = await transcribeAudio({ audioDataUri, language: 'ar' });
-            input.audioTranscriptions!.push({ fileName: message.fileName, transcription: transcriptionResult });
+            try {
+                const transcriptionResult = await transcribeAudio({ audioDataUri, language: 'ar' });
+                input.audioTranscriptions!.push({ fileName: message.fileName, transcription: transcriptionResult });
+            } catch (transcriptionError) {
+                console.error("Error transcribing audio in getContextualAiResponse:", transcriptionError);
+                // Return a user-facing error message directly.
+                return "I'm sorry, but I was unable to transcribe the selected audio message. Please try another message.";
+            }
         }
         if (message.type === 'video' && message.fileName) {
             input.chatLog += `The user has selected a video file named "${message.fileName}". Analysis of video content is not yet supported, but you can comment on the context if available.\n\n`;
