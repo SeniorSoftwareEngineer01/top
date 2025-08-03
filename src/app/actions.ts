@@ -39,8 +39,8 @@ export async function getContextualAiResponse(message: ParsedMessage, mediaDataU
         if (message.type === 'audio' && message.fileName && mediaDataUri) {
             input.chatLog += `The user has selected an audio message named "${message.fileName}". The transcription is provided below.\n\n`;
             try {
-                const transcriptionResult = await transcribeAudio({ audioDataUri, language: 'ar' });
-                input.audioTranscriptions!.push({ fileName: message.fileName, transcription: transcriptionResult });
+                const { transcription } = await transcribeAudioFlow({ audioDataUri: mediaDataUri, language: 'ar' });
+                input.audioTranscriptions!.push({ fileName: message.fileName, transcription: transcription });
             } catch (transcriptionError) {
                 console.error("Error transcribing audio in getContextualAiResponse:", transcriptionError);
                 // Return a user-facing error message directly.
