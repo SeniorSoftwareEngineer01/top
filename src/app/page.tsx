@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChatUpload } from '@/components/chat-upload';
 import { ChatView } from '@/components/chat-view';
 import { QueryInterface, type AIMessage } from '@/components/query-interface';
@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { parseChat, type ParsedMessage } from '@/lib/parser';
 import { getAiResponse, transcribeAudio, getContextualAiResponse } from './actions';
 import { AnalysisView } from '@/components/analysis-view';
+import { saveChatArchive, getLatestChatArchive, saveAiConversation, getLatestAiConversation, clearDb } from '@/lib/db';
 
 // Helper to convert ArrayBuffer to Base64 Data URI
 const arrayBufferToDataUri = (buffer: ArrayBuffer, type: string) => {
@@ -64,9 +65,47 @@ export default function Home() {
   const [queryInputValue, setQueryInputValue] = useState('');
   const { toast } = useToast();
   const [selectedMessage, setSelectedMessage] = useState<ParsedMessage | null>(null);
+  const [isDbLoaded, setIsDbLoaded] = useState(false);
 
-  const handleUpload = (fileContent: string, media: Record<string, ArrayBuffer>) => {
+  useEffect(() => {
+    async function loadFromDb() {
+      try {
+        const archive = await getLatestChatArchive();
+        if (archive) {
+          setChatText(archive.chatText);
+          setParsedChat(archive.parsedChat);
+          setMediaContent(archive.mediaContent);
+        }
+
+        const aiConversation = await getLatestAiConversation();
+        if (aiConversation) {
+          setConversation(aiConversation);
+        }
+      } catch (error) {
+        console.error("Failed to load from DB", error);
+        toast({
+          variant: "destructive",
+          title: "Database Error",
+          description: "Could not load previous session.",
+        });
+      } finally {
+        setIsDbLoaded(true);
+      }
+    }
+    loadFromDb();
+  }, [toast]);
+
+
+  const handleUpload = async (fileContent: string, media: Record<string, ArrayBuffer>, fileName: string) => {
     try {
+      // Clear previous chat data and start fresh
+      await clearDb();
+      setChatText(null);
+      setParsedChat([]);
+      setConversation([]);
+      setMediaContent({});
+      setSelectedMessage(null);
+
       const mediaFiles = Object.keys(media);
       const parsed = parseChat(fileContent, mediaFiles);
 
@@ -80,17 +119,19 @@ export default function Home() {
       }
       
       const mediaData: Record<string, { url: string; buffer: ArrayBuffer }> = {};
-      for (const fileName in media) {
-        const buffer = media[fileName];
-        const mimeType = getMimeType(fileName);
+      for (const fName in media) {
+        const buffer = media[fName];
+        const mimeType = getMimeType(fName);
         const blob = new Blob([buffer], { type: mimeType });
-        mediaData[fileName] = {
+        mediaData[fName] = {
             url: URL.createObjectURL(blob),
             buffer: buffer
         };
       }
-      setMediaContent(mediaData);
+      
+      await saveChatArchive(fileName, fileContent, parsed, mediaData);
 
+      setMediaContent(mediaData);
       setChatText(fileContent);
       setParsedChat(parsed);
       getInitialSummary(fileContent);
@@ -110,14 +151,18 @@ export default function Home() {
     try {
       const summaryContent = content.length > 12000 ? content.substring(0, 12000) : content;
       const result = await getAiResponse({ chatLog: summaryContent, query: "قدم ملخصًا موجزًا ​​ومرقمًا للنقاط الرئيسية في هذه الدردشة. ابدأ بـ 'إليك ملخص الدردشة:'"});
-      setConversation([{ role: 'assistant', content: result }]);
+      const initialMessage: AIMessage = { role: 'assistant', content: result };
+      setConversation([initialMessage]);
+      await saveAiConversation([initialMessage]);
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Analysis Failed',
         description: 'The AI could not provide an initial summary.',
       });
-      setConversation([{ role: 'assistant', content: "I'm sorry, I couldn't generate a summary for this chat. You can still ask me questions about it." }]);
+      const errorMessage: AIMessage = { role: 'assistant', content: "I'm sorry, I couldn't generate a summary for this chat. You can still ask me questions about it." };
+      setConversation([errorMessage]);
+       await saveAiConversation([errorMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -126,7 +171,8 @@ export default function Home() {
   const handleQuery = async (query: string) => {
     if (!chatText) return;
 
-    const newConversation: AIMessage[] = [...conversation, { role: 'user', content: query }];
+    const userMessage: AIMessage = { role: 'user', content: query };
+    const newConversation: AIMessage[] = [...conversation, userMessage];
     setConversation(newConversation);
     setIsLoading(true);
     setQueryInputValue('');
@@ -146,6 +192,7 @@ export default function Home() {
       const audioMessages = parsedChat.filter(msg => msg.type === 'audio' && msg.fileName && mediaContent[msg.fileName]);
       const audioTranscriptions = await Promise.all(
         audioMessages.map(async (msg) => {
+          try {
             const media = mediaContent[msg.fileName!];
             const mimeType = getMimeType(msg.fileName!);
             const audioDataUri = arrayBufferToDataUri(media.buffer, mimeType);
@@ -154,6 +201,14 @@ export default function Home() {
                 fileName: msg.fileName!,
                 transcription: transcription,
             };
+          } catch (error) {
+             console.error(`Transcription failed for ${msg.fileName}:`, error);
+             // Return a placeholder if transcription fails for a single file
+             return {
+                 fileName: msg.fileName!,
+                 transcription: `[Transcription failed for ${msg.fileName}]`,
+             };
+          }
         })
       );
 
@@ -165,14 +220,20 @@ export default function Home() {
           audioTranscriptions: audioTranscriptions,
       });
 
-      setConversation([...newConversation, { role: 'assistant', content: result }]);
+      const assistantMessage: AIMessage = { role: 'assistant', content: result };
+      const finalConversation = [...newConversation, assistantMessage];
+      setConversation(finalConversation);
+      await saveAiConversation(finalConversation);
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
         description: 'Failed to get a response from the AI.',
       });
-      setConversation([...newConversation, { role: 'assistant', content: "I'm sorry, I encountered an error. Please try again." }]);
+      const errorMessage: AIMessage = { role: 'assistant', content: "I'm sorry, I encountered an error. Please try again." };
+      const finalConversation = [...newConversation, errorMessage];
+      setConversation(finalConversation);
+      await saveAiConversation(finalConversation);
     } finally {
       setIsLoading(false);
     }
@@ -185,6 +246,11 @@ export default function Home() {
       setSelectedMessage(message);
     }
   };
+
+  if (!isDbLoaded) {
+    return <div>Loading...</div>; // Or a proper skeleton loader
+  }
+
 
   if (!chatText) {
     return <ChatUpload onUpload={handleUpload} />;

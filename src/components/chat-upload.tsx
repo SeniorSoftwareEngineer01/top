@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import JSZip from 'jszip';
 
 interface ChatUploadProps {
-  onUpload: (fileContent: string, media: Record<string, ArrayBuffer>) => void;
+  onUpload: (fileContent: string, media: Record<string, ArrayBuffer>, fileName: string) => void;
 }
 
 export function ChatUpload({ onUpload }: ChatUploadProps) {
@@ -25,7 +25,7 @@ export function ChatUpload({ onUpload }: ChatUploadProps) {
         const reader = new FileReader();
         reader.onload = (e) => {
           const content = e.target?.result as string;
-          onUpload(content, {});
+          onUpload(content, {}, file.name);
           setIsUploading(false);
         };
         reader.onerror = () => {
@@ -40,18 +40,24 @@ export function ChatUpload({ onUpload }: ChatUploadProps) {
       } else if (file.type === 'application/zip' || file.name.endsWith('.zip')) {
         try {
           const zip = await JSZip.loadAsync(file);
-          const chatFile = Object.values(zip.files).find(file => file.name.endsWith('.txt') && !file.dir);
+          const chatFile = Object.values(zip.files).find(f => f.name.endsWith('.txt') && !f.dir);
           
           if (chatFile) {
             const chatContent = await chatFile.async('string');
             const mediaFiles: Record<string, ArrayBuffer> = {};
             
+            const mediaFilePromises = [];
             for (const fileName in zip.files) {
               if (!zip.files[fileName].dir && !fileName.endsWith('.txt')) {
-                 mediaFiles[fileName] = await zip.files[fileName].async('arraybuffer');
+                 mediaFilePromises.push(
+                    zip.files[fileName].async('arraybuffer').then(buffer => {
+                        mediaFiles[fileName] = buffer;
+                    })
+                 );
               }
             }
-            onUpload(chatContent, mediaFiles);
+            await Promise.all(mediaFilePromises);
+            onUpload(chatContent, mediaFiles, file.name);
           } else {
             toast({
               variant: 'destructive',
@@ -93,6 +99,7 @@ export function ChatUpload({ onUpload }: ChatUploadProps) {
           <CardTitle className="text-2xl font-bold">WhatsAnalyzer</CardTitle>
           <CardDescription className="text-muted-foreground">
             Upload your exported WhatsApp chat file (.txt or .zip) to begin.
+            Your data is stored locally in your browser.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -108,7 +115,7 @@ export function ChatUpload({ onUpload }: ChatUploadProps) {
             {isUploading ? 'Processing...' : 'Select Chat File'}
           </Button>
           <p className="mt-4 text-xs text-muted-foreground">
-            Your chat file is processed locally in your browser and is never sent to our servers.
+            Your chat file is processed and stored locally in your browser and is never sent to our servers.
           </p>
         </CardContent>
       </Card>
