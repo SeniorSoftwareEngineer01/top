@@ -65,22 +65,23 @@ export function AnalysisView({ message, mediaContent, onClose }: AnalysisViewPro
   const [queryInputValue, setQueryInputValue] = useState('');
   const { toast } = useToast();
   const mediaUrl = message.fileName ? mediaContent[message.fileName]?.url : undefined;
+  const viewRef = useRef<HTMLDivElement>(null);
 
-  const getInitialAnalysis = async () => {
+  const getInitialAnalysis = async (msg: ParsedMessage) => {
     setIsLoading(true);
     setConversation([]);
     try {
-      const mediaDataUri = (message.fileName && mediaContent[message.fileName])
-        ? arrayBufferToDataUri(mediaContent[message.fileName].buffer, getMimeType(message.fileName))
+      const mediaDataUri = (msg.fileName && mediaContent[msg.fileName])
+        ? arrayBufferToDataUri(mediaContent[msg.fileName].buffer, getMimeType(msg.fileName))
         : null;
         
-      const result = await getContextualAiResponse(message, mediaDataUri, "Analyze this message in detail. What is it, who sent it, and what is its content or appearance? Provide a comprehensive summary.");
+      const result = await getContextualAiResponse(msg, mediaDataUri, "Analyze this message in detail. What is it, who sent it, and what is its content or appearance? Provide a comprehensive summary.");
       setConversation([{ role: 'assistant', content: result }]);
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Analysis Failed',
-        description: 'The AI could not provide an initial analysis.',
+        description: (error as Error).message || 'The AI could not provide an initial analysis.',
       });
       setConversation([{ role: 'assistant', content: "I'm sorry, I couldn't analyze this message. You can still ask me questions about it." }]);
     } finally {
@@ -89,7 +90,13 @@ export function AnalysisView({ message, mediaContent, onClose }: AnalysisViewPro
   };
   
   useEffect(() => {
-    getInitialAnalysis();
+    if (message) {
+      // Add a simple animation on message change
+      viewRef.current?.classList.remove('animate-in', 'fade-in');
+      void viewRef.current?.offsetWidth; // Trigger reflow
+      viewRef.current?.classList.add('animate-in', 'fade-in');
+      getInitialAnalysis(message);
+    }
   }, [message]);
 
 
@@ -118,15 +125,15 @@ export function AnalysisView({ message, mediaContent, onClose }: AnalysisViewPro
   };
 
   return (
-    <div className="flex flex-1 flex-col h-screen relative">
-      <div className="absolute top-4 right-4 z-10">
+    <div ref={viewRef} className="flex flex-1 flex-col h-full relative border-l">
+      <div className="absolute top-2 right-2 z-10">
         <Button variant="ghost" size="icon" onClick={onClose}>
-          <X className="h-6 w-6" />
+          <X className="h-5 w-5" />
           <span className="sr-only">Close Analysis</span>
         </Button>
       </div>
       <div className="p-4 border-b">
-         <Card className="max-w-md mx-auto">
+         <Card className="max-w-md mx-auto shadow-sm">
             <CardHeader>
                 <CardTitle className="text-lg">Selected Message</CardTitle>
             </CardHeader>

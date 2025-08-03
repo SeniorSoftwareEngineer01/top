@@ -49,7 +49,7 @@ export function ChatView({ chat, mediaContent, onMessageSelect, selectedMessage 
             {chat.map((msg, index) => {
               const userMessage = isUser(msg.author);
               const mediaUrl = msg.fileName ? mediaContent[msg.fileName]?.url : undefined;
-              const isSelected = selectedMessage?.timestamp === msg.timestamp && selectedMessage?.content === msg.content;
+              const isSelected = selectedMessage?.timestamp === msg.timestamp && selectedMessage?.content === msg.content && selectedMessage?.author === msg.author;
               
               return (
                 <div

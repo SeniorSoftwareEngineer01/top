@@ -248,7 +248,7 @@ export default function Home() {
   };
 
   if (!isDbLoaded) {
-    return <div>Loading...</div>; // Or a proper skeleton loader
+    return <div className="flex h-screen w-full items-center justify-center">Loading...</div>;
   }
 
 
@@ -258,23 +258,34 @@ export default function Home() {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen">
-        {selectedMessage ? (
-          <AnalysisView 
-            message={selectedMessage}
-            mediaContent={mediaContent}
-            onClose={() => setSelectedMessage(null)}
-          />
-        ) : (
-          <QueryInterface
-            conversation={conversation}
-            onQuery={handleQuery}
-            isLoading={isLoading}
-            inputValue={queryInputValue}
-            setInputValue={setQueryInputValue}
-          />
-        )}
-        <Sidebar side="right">
+       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 min-h-screen">
+        <div className="lg:col-span-2 flex flex-col">
+           <QueryInterface
+                conversation={conversation}
+                onQuery={handleQuery}
+                isLoading={isLoading}
+                inputValue={queryInputValue}
+                setInputValue={setQueryInputValue}
+              />
+        </div>
+        
+        <div className="relative flex flex-col bg-muted/20">
+            {selectedMessage ? (
+              <AnalysisView 
+                message={selectedMessage}
+                mediaContent={mediaContent}
+                onClose={() => setSelectedMessage(null)}
+              />
+            ) : (
+               <div className="flex flex-1 items-center justify-center text-center p-4">
+                  <p className="text-muted-foreground">Double-click a message in the chat to start a detailed analysis here.</p>
+               </div>
+            )}
+        </div>
+
+      </div>
+
+      <Sidebar side="right">
           <ChatView 
             chat={parsedChat} 
             mediaContent={mediaContent} 
@@ -282,7 +293,6 @@ export default function Home() {
             selectedMessage={selectedMessage}
           />
         </Sidebar>
-      </div>
       <Toaster />
     </SidebarProvider>
   );
