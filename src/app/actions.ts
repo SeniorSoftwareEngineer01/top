@@ -38,8 +38,8 @@ export async function getContextualAiResponse(message: ParsedMessage, mediaDataU
         }
         if (message.type === 'audio' && message.fileName && mediaDataUri) {
             input.chatLog += `The user has selected an audio message named "${message.fileName}". The transcription is provided below.\n\n`;
-            const transcription = await transcribeAudio({ audioDataUri, language: 'ar' });
-            input.audioTranscriptions!.push({ fileName: message.fileName, transcription: transcription });
+            const transcriptionResult = await transcribeAudio({ audioDataUri, language: 'ar' });
+            input.audioTranscriptions!.push({ fileName: message.fileName, transcription: transcriptionResult.transcription });
         }
         if (message.type === 'video' && message.fileName) {
             input.chatLog += `The user has selected a video file named "${message.fileName}". Analysis of video content is not yet supported, but you can comment on the context if available.\n\n`;

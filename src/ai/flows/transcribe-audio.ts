@@ -29,7 +29,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
 
 const transcriptionPrompt = ai.definePrompt({
     name: 'transcriptionPrompt',
-    input: { schema: TranscribeAudioInputSchema },
+    input: { schema: z.object({ audioDataUri: z.string(), language: z.string() }) },
     prompt: `Transcribe the following audio file. The language is {{language}}. Respond only with the transcribed text.
   
   Audio: {{media url=audioDataUri}}`,
@@ -45,13 +45,17 @@ const transcribeAudioFlow = ai.defineFlow(
   async (input) => {
     try {
       const { text } = await ai.generate({
-        prompt: `Transcribe the following audio file. The language is ${input.language}. Respond only with the transcribed text.`,
-        media: { url: input.audioDataUri }
+          model: 'googleai/gemini-2.0-flash',
+          prompt: [
+              { text: `Transcribe the following audio file. The language is ${input.language}. Respond only with the transcribed text.` },
+              { media: { url: input.audioDataUri } }
+          ],
       });
       return { transcription: text };
     } catch (error) {
       console.error('Error in transcribeAudioFlow:', error);
-      return { transcription: '[Audio transcription failed]' };
+      // It's better to throw the error to be handled by the caller
+      throw new Error('Audio transcription failed in flow.');
     }
   }
 );
