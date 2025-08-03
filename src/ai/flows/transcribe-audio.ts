@@ -27,14 +27,6 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
   return transcribeAudioFlow(input);
 }
 
-const transcriptionPrompt = ai.definePrompt({
-    name: 'transcriptionPrompt',
-    input: { schema: z.object({ audioDataUri: z.string(), language: z.string() }) },
-    prompt: `Transcribe the following audio file. The language is {{language}}. Respond only with the transcribed text.
-  
-  Audio: {{media url=audioDataUri}}`,
-});
-
 
 const transcribeAudioFlow = ai.defineFlow(
   {
