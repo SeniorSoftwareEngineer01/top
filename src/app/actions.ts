@@ -39,7 +39,7 @@ export async function getContextualAiResponse(message: ParsedMessage, mediaDataU
         if (message.type === 'audio' && message.fileName && mediaDataUri) {
             input.chatLog += `The user has selected an audio message named "${message.fileName}". The transcription is provided below.\n\n`;
             const transcriptionResult = await transcribeAudio({ audioDataUri, language: 'ar' });
-            input.audioTranscriptions!.push({ fileName: message.fileName, transcription: transcriptionResult.transcription });
+            input.audioTranscriptions!.push({ fileName: message.fileName, transcription: transcriptionResult });
         }
         if (message.type === 'video' && message.fileName) {
             input.chatLog += `The user has selected a video file named "${message.fileName}". Analysis of video content is not yet supported, but you can comment on the context if available.\n\n`;
@@ -75,6 +75,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<stri
         return result.transcription;
     } catch (error) {
         console.error("Error in transcribeAudio action:", error);
-        return "[Audio transcription failed]";
+        // Re-throw the error to be caught by the calling function
+        throw new Error("Audio transcription failed.");
     }
 }
