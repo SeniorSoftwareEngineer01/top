@@ -29,6 +29,10 @@ interface StoredAiConversation {
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined' || !window.indexedDB) {
+        reject(new Error('IndexedDB is not supported.'));
+        return;
+    }
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onupgradeneeded = (event) => {
@@ -126,10 +130,23 @@ export async function saveAiConversation(conversation: AIMessage[]): Promise<voi
     const store = transaction.objectStore(AI_CONVO_STORE_NAME);
     const clearRequest = store.clear();
 
+    // We can't store the buffer of the context message in the AI conversation,
+    // as it's already in the main archive. So we create a serializable version.
+    const serializableConversation = conversation.map(msg => {
+      if (msg.contextMessage) {
+        // Create a copy and remove non-serializable parts if they exist
+        const contextCopy = { ...msg.contextMessage };
+        // The buffer isn't on this object anyway based on ParsedMessage type,
+        // but this is good practice.
+        return { ...msg, contextMessage: contextCopy };
+      }
+      return msg;
+    });
+
     return new Promise((resolve, reject) => {
         clearRequest.onsuccess = () => {
             const convo: Omit<StoredAiConversation, 'id'> = {
-                conversation,
+                conversation: serializableConversation,
                 createdAt: new Date(),
             };
             const addRequest = store.add(convo);
@@ -170,8 +187,8 @@ export async function clearDb(): Promise<void> {
     const aiClearReq = aiStore.clear();
 
     await Promise.all([
-        new Promise((res, rej) => { archiveClearReq.onsuccess = res; archiveClearReq.onerror = rej; }),
-        new Promise((res, rej) => { aiClearReq.onsuccess = res; aiClearReq.onerror = rej; }),
+        new Promise<void>((res, rej) => { archiveClearReq.onsuccess = () => res(); archiveClearReq.onerror = () => rej(archiveClearReq.error); }),
+        new Promise<void>((res, rej) => { aiClearReq.onsuccess = () => res(); aiClearReq.onerror = () => rej(aiClearReq.error); }),
     ]);
 }
 

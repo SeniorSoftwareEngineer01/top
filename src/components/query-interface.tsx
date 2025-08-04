@@ -8,10 +8,13 @@ import { cn } from '@/lib/utils';
 import { Bot, Send, User } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { TtsDialog } from './tts-dialog';
+import type { ParsedMessage } from '@/lib/parser';
+import { MediaMessage } from './media-message';
 
 export interface AIMessage {
   role: 'user' | 'assistant';
   content: string;
+  contextMessage?: ParsedMessage;
 }
 
 interface QueryInterfaceProps {
@@ -21,6 +24,7 @@ interface QueryInterfaceProps {
   inputValue: string;
   setInputValue: (value: string) => void;
   children?: React.ReactNode;
+  mediaContent: Record<string, { url: string; buffer: ArrayBuffer }>;
 }
 
 const LoadingIndicator = () => (
@@ -31,7 +35,23 @@ const LoadingIndicator = () => (
   </div>
 );
 
-export function QueryInterface({ conversation, onQuery, isLoading, inputValue, setInputValue, children }: QueryInterfaceProps) {
+const ContextMessageDisplay = ({ message, mediaContent }: { message: ParsedMessage, mediaContent: QueryInterfaceProps['mediaContent'] }) => {
+  const mediaUrl = message.fileName ? mediaContent[message.fileName]?.url : undefined;
+  return (
+    <div className="mb-2 rounded-md border border-dashed border-border bg-muted/50 p-2">
+        <p className="text-xs text-muted-foreground mb-1">Replying to message from {message.author}:</p>
+        <div className="max-h-24 overflow-auto rounded-sm bg-background/50 p-1">
+             {message.type === 'text' ? (
+                <p className="text-sm whitespace-pre-wrap" dir="auto">{message.content}</p>
+            ) : (
+                <MediaMessage message={message} mediaUrl={mediaUrl} />
+            )}
+        </div>
+    </div>
+  )
+}
+
+export function QueryInterface({ conversation, onQuery, isLoading, inputValue, setInputValue, children, mediaContent }: QueryInterfaceProps) {
   const [isTtsDialogOpen, setIsTtsDialogOpen] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -108,6 +128,7 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
                       : 'bg-primary text-primary-foreground'
                   )}
                 >
+                  {msg.contextMessage && <ContextMessageDisplay message={msg.contextMessage} mediaContent={mediaContent} />}
                   {msg.content}
                 </div>
                  {msg.role === 'user' && (

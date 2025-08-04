@@ -4,14 +4,13 @@ import { useState, useEffect } from 'react';
 import { ChatUpload } from '@/components/chat-upload';
 import { ChatView } from '@/components/chat-view';
 import { QueryInterface, type AIMessage } from '@/components/query-interface';
-import { Sidebar, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { Sidebar, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
 import { parseChat, type ParsedMessage } from '@/lib/parser';
 import { getAiResponse, getContextualAiResponse } from './actions';
 import { saveChatArchive, getLatestChatArchive, saveAiConversation, getLatestAiConversation, clearDb } from '@/lib/db';
 import { SelectedMessageView } from '@/components/selected-message-view';
-import { Button } from '@/components/ui/button';
 import { PanelLeft } from 'lucide-react';
 
 // Helper to convert ArrayBuffer to Base64 Data URI
@@ -181,11 +180,16 @@ export default function Home() {
 
     try {
       let result: string;
+      let assistantMessage: AIMessage;
+
       if (selectedMessage) {
          const mediaDataUri = (selectedMessage.fileName && mediaContent[selectedMessage.fileName])
             ? arrayBufferToDataUri(mediaContent[selectedMessage.fileName].buffer, getMimeType(selectedMessage.fileName))
             : null;
         result = await getContextualAiResponse(selectedMessage, mediaDataUri, query);
+        
+        assistantMessage = { role: 'assistant', content: result, contextMessage: selectedMessage };
+
         // Deselect the message after asking a question about it
         setSelectedMessage(null); 
       } else {
@@ -206,9 +210,10 @@ export default function Home() {
             query,
             images: imagesToAnalyze,
         });
+
+        assistantMessage = { role: 'assistant', content: result };
       }
 
-      const assistantMessage: AIMessage = { role: 'assistant', content: result };
       const finalConversation = [...newConversation, assistantMessage];
       setConversation(finalConversation);
       await saveAiConversation(finalConversation);
@@ -268,6 +273,7 @@ export default function Home() {
                     isLoading={isLoading}
                     inputValue={queryInputValue}
                     setInputValue={setQueryInputValue}
+                    mediaContent={mediaContent}
                   >
                     {selectedMessage && (
                       <SelectedMessageView 
