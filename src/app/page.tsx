@@ -8,9 +8,9 @@ import { Sidebar, SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
 import { parseChat, type ParsedMessage } from '@/lib/parser';
-import { getAiResponse, transcribeAudio, getContextualAiResponse } from './actions';
-import { AnalysisView } from '@/components/analysis-view';
+import { getAiResponse, getContextualAiResponse } from './actions';
 import { saveChatArchive, getLatestChatArchive, saveAiConversation, getLatestAiConversation, clearDb } from '@/lib/db';
+import { SelectedMessageView } from '@/components/selected-message-view';
 
 // Helper to convert ArrayBuffer to Base64 Data URI
 const arrayBufferToDataUri = (buffer: ArrayBuffer, type: string) => {
@@ -178,57 +178,61 @@ export default function Home() {
     setQueryInputValue('');
 
     try {
-      const imagesToAnalyze = parsedChat
-        .filter(msg => msg.type === 'image' && msg.fileName && mediaContent[msg.fileName])
-        .map(msg => {
-            const media = mediaContent[msg.fileName!];
-            const mimeType = getMimeType(msg.fileName!);
-            return {
-                fileName: msg.fileName!,
-                dataUri: arrayBufferToDataUri(media.buffer, mimeType)
+      let result: string;
+      if (selectedMessage) {
+         const mediaDataUri = (selectedMessage.fileName && mediaContent[selectedMessage.fileName])
+            ? arrayBufferToDataUri(mediaContent[selectedMessage.fileName].buffer, getMimeType(selectedMessage.fileName))
+            : null;
+        result = await getContextualAiResponse(selectedMessage, mediaDataUri, query);
+        // Deselect the message after asking a question about it
+        setSelectedMessage(null); 
+      } else {
+        const imagesToAnalyze = parsedChat
+          .filter(msg => msg.type === 'image' && msg.fileName && mediaContent[msg.fileName])
+          .slice(0, 10) // Limit to first 10 images to avoid large payloads
+          .map(msg => {
+              const media = mediaContent[msg.fileName!];
+              const mimeType = getMimeType(msg.fileName!);
+              return {
+                  fileName: msg.fileName!,
+                  dataUri: arrayBufferToDataUri(media.buffer, mimeType)
+              }
+          });
+        
+        const audioMessages = parsedChat.filter(msg => msg.type === 'audio' && msg.fileName && mediaContent[msg.fileName]).slice(0,5);
+        const audioTranscriptions = [];
+        for (const msg of audioMessages) {
+            try {
+                const media = mediaContent[msg.fileName!];
+                const mimeType = getMimeType(msg.fileName!);
+                const audioDataUri = arrayBufferToDataUri(media.buffer, mimeType);
+                const { transcription } = await getAiResponse({ chatLog: '', query: 'transcribe this audio', audioDataUri: audioDataUri });
+                audioTranscriptions.push({
+                    fileName: msg.fileName!,
+                    transcription: transcription,
+                });
+            } catch (error) {
+                console.error(`Transcription failed for ${msg.fileName}:`, error);
+                // Don't add a failed transcription
             }
+        }
+        
+        result = await getAiResponse({
+            chatLog: chatText,
+            query,
+            images: imagesToAnalyze,
         });
-
-      const audioMessages = parsedChat.filter(msg => msg.type === 'audio' && msg.fileName && mediaContent[msg.fileName]);
-      const audioTranscriptions = await Promise.all(
-        audioMessages.map(async (msg) => {
-          try {
-            const media = mediaContent[msg.fileName!];
-            const mimeType = getMimeType(msg.fileName!);
-            const audioDataUri = arrayBufferToDataUri(media.buffer, mimeType);
-            const transcription = await transcribeAudio({ audioDataUri: audioDataUri, language: 'ar' });
-            return {
-                fileName: msg.fileName!,
-                transcription: transcription,
-            };
-          } catch (error) {
-             console.error(`Transcription failed for ${msg.fileName}:`, error);
-             // Return a placeholder if transcription fails for a single file
-             return {
-                 fileName: msg.fileName!,
-                 transcription: `[Transcription failed for ${msg.fileName}]`,
-             };
-          }
-        })
-      );
-
-
-      const result = await getAiResponse({
-          chatLog: chatText,
-          query,
-          images: imagesToAnalyze,
-          audioTranscriptions: audioTranscriptions,
-      });
+      }
 
       const assistantMessage: AIMessage = { role: 'assistant', content: result };
       const finalConversation = [...newConversation, assistantMessage];
       setConversation(finalConversation);
       await saveAiConversation(finalConversation);
     } catch (error) {
-      toast({
+       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to get a response from the AI.',
+        description: (error as Error).message || 'Failed to get a response from the AI.',
       });
       const errorMessage: AIMessage = { role: 'assistant', content: "I'm sorry, I encountered an error. Please try again." };
       const finalConversation = [...newConversation, errorMessage];
@@ -258,34 +262,27 @@ export default function Home() {
 
   return (
     <SidebarProvider>
-       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 min-h-screen">
-        <div className="lg:col-span-2 flex flex-col">
+      <div className="grid grid-cols-1 md:grid-cols-3 min-h-screen bg-muted/30">
+        <div className="col-span-1 md:col-span-3 flex flex-col h-screen">
            <QueryInterface
                 conversation={conversation}
                 onQuery={handleQuery}
                 isLoading={isLoading}
                 inputValue={queryInputValue}
                 setInputValue={setQueryInputValue}
-              />
+              >
+                {selectedMessage && (
+                  <SelectedMessageView 
+                    message={selectedMessage}
+                    mediaContent={mediaContent}
+                    onClose={() => setSelectedMessage(null)} 
+                  />
+                )}
+              </QueryInterface>
         </div>
-        
-        <div className="relative flex flex-col bg-muted/20">
-            {selectedMessage ? (
-              <AnalysisView 
-                message={selectedMessage}
-                mediaContent={mediaContent}
-                onClose={() => setSelectedMessage(null)}
-              />
-            ) : (
-               <div className="flex flex-1 items-center justify-center text-center p-4">
-                  <p className="text-muted-foreground">Double-click a message in the chat to start a detailed analysis here.</p>
-               </div>
-            )}
-        </div>
-
       </div>
 
-      <Sidebar side="right">
+      <Sidebar side="left">
           <ChatView 
             chat={parsedChat} 
             mediaContent={mediaContent} 

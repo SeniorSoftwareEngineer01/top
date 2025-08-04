@@ -20,6 +20,7 @@ interface QueryInterfaceProps {
   isLoading: boolean;
   inputValue: string;
   setInputValue: (value: string) => void;
+  children?: React.ReactNode;
 }
 
 const LoadingIndicator = () => (
@@ -30,7 +31,7 @@ const LoadingIndicator = () => (
   </div>
 );
 
-export function QueryInterface({ conversation, onQuery, isLoading, inputValue, setInputValue }: QueryInterfaceProps) {
+export function QueryInterface({ conversation, onQuery, isLoading, inputValue, setInputValue, children }: QueryInterfaceProps) {
   const [isTtsDialogOpen, setIsTtsDialogOpen] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -130,7 +131,8 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
         </ScrollArea>
       </div>
       <div className="border-t bg-background/80 backdrop-blur-sm">
-        <div className="mx-auto max-w-3xl p-4">
+        <div className="mx-auto max-w-3xl p-4 space-y-2">
+          {children}
           <form onSubmit={handleQuerySubmit} className="relative">
             <Textarea
               ref={textAreaRef}

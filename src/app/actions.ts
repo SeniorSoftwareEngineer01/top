@@ -2,18 +2,28 @@
 
 import { analyzeWhatsappChat, type AnalyzeWhatsappChatInput } from "@/ai/flows/analyze-whatsapp-chat";
 import { textToSpeech as ttsFlow, type TextToSpeechInput, type TextToSpeechOutput } from "@/ai/flows/text-to-speech";
-import { transcribeAudio as transcribeAudioFlow, type TranscribeAudioInput } from "@/ai/flows/transcribe-audio";
+import { transcribeAudio as transcribeAudioFlow, type TranscribeAudioInput, type TranscribeAudioOutput } from "@/ai/flows/transcribe-audio";
 import type { ParsedMessage } from "@/lib/parser";
 
 
 export async function getAiResponse(input: AnalyzeWhatsappChatInput): Promise<string> {
-  try {
-    const result = await analyzeWhatsappChat(input);
-    return result.answer;
-  } catch (error) {
-    console.error("Error in getAiResponse:", error);
-    throw new Error("Failed to get a response from the AI model.");
-  }
+    if (input.audioDataUri && !input.images) {
+        try {
+            const { transcription } = await transcribeAudioFlow({ audioDataUri: input.audioDataUri, language: 'ar' });
+            return transcription;
+        } catch (error) {
+            console.error('Error in audio transcription via getAiResponse:', error);
+            throw new Error("I'm sorry, but I was unable to transcribe the selected audio message. Please try another message.");
+        }
+    }
+
+    try {
+        const result = await analyzeWhatsappChat(input);
+        return result.answer;
+    } catch (error) {
+        console.error("Error in getAiResponse:", error);
+        throw new Error("Failed to get a response from the AI model.");
+    }
 }
 
 export async function getContextualAiResponse(message: ParsedMessage, mediaDataUri: string | null, query: string): Promise<string> {
@@ -26,7 +36,6 @@ export async function getContextualAiResponse(message: ParsedMessage, mediaDataU
             chatLog: chatLog,
             query: query,
             images: [],
-            audioTranscriptions: [],
         };
 
         if (message.type === 'text' && message.content) {
@@ -37,15 +46,10 @@ export async function getContextualAiResponse(message: ParsedMessage, mediaDataU
             input.images!.push({ fileName: message.fileName, dataUri: mediaDataUri });
         }
         if (message.type === 'audio' && message.fileName && mediaDataUri) {
-            input.chatLog += `The user has selected an audio message named "${message.fileName}". The transcription is provided below.\n\n`;
-            try {
-                const { transcription } = await transcribeAudioFlow({ audioDataUri: mediaDataUri, language: 'ar' });
-                input.audioTranscriptions!.push({ fileName: message.fileName, transcription: transcription });
-            } catch (transcriptionError) {
-                console.error("Error transcribing audio in getContextualAiResponse:", transcriptionError);
-                // Return a user-facing error message directly.
-                return "I'm sorry, but I was unable to transcribe the selected audio message. Please try another message.";
-            }
+             input.audioDataUri = mediaDataUri;
+             // The query for transcription will be handled by the getAiResponse function now
+             // so we can ask for transcription and analysis in one go.
+             input.query = `The user has selected an audio message. First, transcribe it, then answer the user's query about the content: "${query}"`;
         }
         if (message.type === 'video' && message.fileName) {
             input.chatLog += `The user has selected a video file named "${message.fileName}". Analysis of video content is not yet supported, but you can comment on the context if available.\n\n`;
@@ -54,12 +58,14 @@ export async function getContextualAiResponse(message: ParsedMessage, mediaDataU
             input.chatLog += `The user has selected a file named "${message.fileName}". Analysis of file content is not yet supported, but you can comment on the context if available.\n\n`;
         }
 
-
         const result = await analyzeWhatsappChat(input);
         return result.answer;
 
     } catch (error) {
         console.error("Error in getContextualAiResponse:", error);
+        if ((error as Error).message.includes('transcribe')) {
+             return (error as Error).message;
+        }
         throw new Error("Failed to get a contextual response from the AI model.");
     }
 }
@@ -75,10 +81,10 @@ export async function textToSpeech(input: TextToSpeechInput): Promise<TextToSpee
     }
 }
 
-export async function transcribeAudio(input: TranscribeAudioInput): Promise<string> {
+export async function transcribeAudio(input: TranscribeAudioInput): Promise<TranscribeAudioOutput> {
     try {
         const result = await transcribeAudioFlow(input);
-        return result.transcription;
+        return result;
     } catch (error) {
         console.error("Error in transcribeAudio action:", error);
         // Re-throw the error to be caught by the calling function

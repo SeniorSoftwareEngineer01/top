@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { transcribeAudio } from './transcribe-audio';
 
 const AnalyzeWhatsappChatInputSchema = z.object({
   chatLog: z
@@ -20,10 +21,7 @@ const AnalyzeWhatsappChatInputSchema = z.object({
     fileName: z.string(),
     dataUri: z.string().describe("An image from the chat, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
   })).describe('An array of images present in the chat.').optional(),
-  audioTranscriptions: z.array(z.object({
-      fileName: z.string(),
-      transcription: z.string(),
-  })).describe('An array of audio transcriptions from the chat.').optional(),
+  audioDataUri: z.string().describe("An audio file to transcribe and analyze, as a data URI.").optional(),
 });
 export type AnalyzeWhatsappChatInput = z.infer<typeof AnalyzeWhatsappChatInputSchema>;
 
@@ -38,7 +36,15 @@ export async function analyzeWhatsappChat(input: AnalyzeWhatsappChatInput): Prom
 
 const prompt = ai.definePrompt({
   name: 'analyzeWhatsappChatPrompt',
-  input: {schema: AnalyzeWhatsappChatInputSchema},
+  input: {schema: z.object({
+      chatLog: z.string(),
+      query: z.string(),
+      images: z.array(z.object({
+        fileName: z.string(),
+        dataUri: z.string(),
+      })).optional(),
+      audioTranscription: z.string().optional(),
+  })},
   output: {schema: AnalyzeWhatsappChatOutputSchema},
   prompt: `You are an expert in analyzing WhatsApp chat logs, including text, images, and audio transcriptions.
 
@@ -54,11 +60,9 @@ const prompt = ai.definePrompt({
   {{/each}}
   {{/if}}
 
-  {{#if audioTranscriptions}}
-  Audio Transcriptions from the chat:
-  {{#each audioTranscriptions}}
-  - Transcription for {{fileName}}: {{transcription}}
-  {{/each}}
+  {{#if audioTranscription}}
+  A relevant audio transcription:
+  {{audioTranscription}}
   {{/if}}
 
   Question:
@@ -72,8 +76,25 @@ const analyzeWhatsappChatFlow = ai.defineFlow(
     inputSchema: AnalyzeWhatsappChatInputSchema,
     outputSchema: AnalyzeWhatsappChatOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
+  async (input) => {
+    let audioTranscription: string | undefined;
+
+    if (input.audioDataUri) {
+      try {
+        const transcriptionResult = await transcribeAudio({ audioDataUri: input.audioDataUri, language: 'ar' });
+        audioTranscription = transcriptionResult.transcription;
+      } catch (e) {
+        console.error("Transcription failed within the flow", e);
+        throw new Error("I'm sorry, but I was unable to transcribe the selected audio message. Please try another message.");
+      }
+    }
+    
+    const {output} = await prompt({
+        chatLog: input.chatLog,
+        query: input.query,
+        images: input.images,
+        audioTranscription: audioTranscription,
+    });
     return output!;
   }
 );
