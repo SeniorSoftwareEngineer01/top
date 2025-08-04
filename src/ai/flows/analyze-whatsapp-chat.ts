@@ -16,7 +16,7 @@ const AnalyzeWhatsappChatInputSchema = z.object({
   chatLog: z
     .string()
     .describe('The complete WhatsApp chat log as a single string.'),
-  query: z.string().describe('The question about the chat log.'),
+  query: z.string().describe('The question or instruction about the chat log.'),
   images: z.array(z.object({
     fileName: z.string(),
     dataUri: z.string().describe("An image from the chat, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
@@ -26,7 +26,7 @@ const AnalyzeWhatsappChatInputSchema = z.object({
 export type AnalyzeWhatsappChatInput = z.infer<typeof AnalyzeWhatsappChatInputSchema>;
 
 const AnalyzeWhatsappChatOutputSchema = z.object({
-  answer: z.string().describe('The answer to the question about the chat log.'),
+  answer: z.string().describe('The answer to the question about the chat log. This can be text, markdown, or code.'),
 });
 export type AnalyzeWhatsappChatOutput = z.infer<typeof AnalyzeWhatsappChatOutputSchema>;
 
@@ -46,28 +46,41 @@ const prompt = ai.definePrompt({
       audioTranscription: z.string().optional(),
   })},
   output: {schema: AnalyzeWhatsappChatOutputSchema},
-  prompt: `You are an expert in analyzing WhatsApp chat logs, including text, images, and audio transcriptions.
+  prompt: `You are an expert data analyst and front-end developer, specializing in analyzing and visualizing WhatsApp chat data.
 
-  Based on the provided chat log and any included media, answer the following question as accurately as possible.
+Your capabilities include:
+- Analyzing large volumes of text to identify key themes, topics, and user behaviors.
+- Transcribing audio messages to include their content in the analysis.
+- Describing the content of images to add context.
+- Translating text between languages.
+- Generating structured data outputs like tables in Markdown format.
+- Creating data visualizations by generating HTML/JS code using libraries like Recharts or D3.js when asked to create diagrams or charts.
 
-  Chat Log:
-  {{chatLog}}
+You will be given a full chat log, and potentially a set of images and an audio transcription. Use ALL the information provided to fulfill the user's request comprehensively. Think step-by-step.
 
-  {{#if images}}
-  Images included in the chat:
-  {{#each images}}
-  - {{fileName}}: {{media url=dataUri}}
-  {{/each}}
-  {{/if}}
+Data Provided:
 
-  {{#if audioTranscription}}
-  A relevant audio transcription:
-  {{audioTranscription}}
-  {{/if}}
+Chat Log:
+{{chatLog}}
 
-  Question:
-  {{query}}
-  `,
+{{#if images}}
+Images included in the chat:
+You must analyze the content of these images as part of your response.
+{{#each images}}
+- {{fileName}}: {{media url=dataUri}}
+{{/each}}
+{{/if}}
+
+{{#if audioTranscription}}
+A relevant audio transcription:
+"{{audioTranscription}}"
+{{/if}}
+
+User's Request:
+"{{query}}"
+
+Provide your comprehensive analysis below. If asked for a table, format it using Markdown. If asked for a chart or diagram, provide the complete code required to render it.
+`,
 });
 
 const analyzeWhatsappChatFlow = ai.defineFlow(
@@ -81,11 +94,14 @@ const analyzeWhatsappChatFlow = ai.defineFlow(
 
     if (input.audioDataUri) {
       try {
-        const transcriptionResult = await transcribeAudio({ audioDataUri: input.audioDataUri, language: 'ar' });
+        // We pass the full input.query to the transcription flow in case it's needed for context,
+        // though the current implementation doesn't use it.
+        const transcriptionResult = await transcribeAudio({ audioDataUri: input.audioDataUri, prompt: input.query, language: 'ar' });
         audioTranscription = transcriptionResult.transcription;
       } catch (e) {
         console.error("Transcription failed within the flow", e);
-        throw new Error("I'm sorry, but I was unable to transcribe the selected audio message. Please try another message.");
+        // Return a user-friendly error if transcription fails.
+        return { answer: "I'm sorry, but I was unable to transcribe the selected audio message. Please try another message." };
       }
     }
     
