@@ -66,7 +66,7 @@ export async function getContextualAiResponse(message: ParsedMessage, mediaDataU
         if ((error as Error).message.includes('transcribe')) {
              return (error as Error).message;
         }
-        throw new Error("Failed to get a contextual response from the AI model.");
+        return "I'm sorry, but an unexpected error occurred while analyzing the message. Please try again.";
     }
 }
 
@@ -82,12 +82,14 @@ export async function textToSpeech(input: TextToSpeechInput): Promise<TextToSpee
 }
 
 export async function transcribeAudio(input: TranscribeAudioInput): Promise<TranscribeAudioOutput> {
-    try {
-        const result = await transcribeAudioFlow(input);
-        return result;
+     try {
+        const { transcription } = await transcribeAudioFlow(input);
+        if (!transcription || transcription.trim() === '') {
+             throw new Error("Transcription result was empty.");
+        }
+        return { transcription };
     } catch (error) {
         console.error("Error in transcribeAudio action:", error);
-        // Re-throw the error to be caught by the calling function
-        throw new Error("Audio transcription failed.");
+        throw new Error("I'm sorry, but I was unable to transcribe the selected audio message. Please try another message.");
     }
 }

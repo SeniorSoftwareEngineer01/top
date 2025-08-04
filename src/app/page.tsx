@@ -1,291 +1,263 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { ChatUpload } from '@/components/chat-upload';
-import { ChatView } from '@/components/chat-view';
-import { QueryInterface, type AIMessage } from '@/components/query-interface';
-import { Sidebar, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { Toaster } from '@/components/ui/toaster';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { parseChat, type ParsedMessage } from '@/lib/parser';
-import { getAiResponse, getContextualAiResponse } from './actions';
-import { saveChatArchive, getLatestChatArchive, saveAiConversation, getLatestAiConversation, clearDb } from '@/lib/db';
-import { SelectedMessageView } from '@/components/selected-message-view';
-import { PanelLeft } from 'lucide-react';
+import {
+  getAllConversations,
+  deleteConversation,
+  updateConversationName,
+  type Conversation,
+} from '@/lib/db';
+import { formatDistanceToNow } from 'date-fns';
+import { MessageSquarePlus, MoreVertical, Trash2, Pencil } from 'lucide-react';
 
-// Helper to convert ArrayBuffer to Base64 Data URI
-const arrayBufferToDataUri = (buffer: ArrayBuffer, type: string) => {
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  const base64 = btoa(binary);
-  return `data:${type};base64,${base64}`;
-}
-
-const getMimeType = (fileName: string): string => {
-  const extension = fileName.split('.').pop()?.toLowerCase();
-  switch (extension) {
-    case 'jpg':
-    case 'jpeg':
-      return 'image/jpeg';
-    case 'png':
-      return 'image/png';
-    case 'gif':
-      return 'image/gif';
-    case 'webp':
-      return 'image/webp';
-    case 'mp3':
-      return 'audio/mpeg';
-    case 'ogg':
-        return 'audio/ogg';
-    case 'wav':
-        return 'audio/wav';
-    case 'opus':
-        return 'audio/opus';
-    case 'm4a':
-        return 'audio/mp4';
-    case 'mp4':
-      return 'video/mp4';
-    case 'webm':
-      return 'video/webm';
-    default:
-      return 'application/octet-stream';
-  }
-};
-
-
-export default function Home() {
-  const [chatText, setChatText] = useState<string | null>(null);
-  const [parsedChat, setParsedChat] = useState<ParsedMessage[]>([]);
-  const [conversation, setConversation] = useState<AIMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [mediaContent, setMediaContent] = useState<Record<string, { url: string; buffer: ArrayBuffer }>>({});
-  const [queryInputValue, setQueryInputValue] = useState('');
+export default function HomePage() {
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [renamingId, setRenamingId] = useState<number | null>(null);
+  const router = useRouter();
   const { toast } = useToast();
-  const [selectedMessage, setSelectedMessage] = useState<ParsedMessage | null>(null);
-  const [isDbLoaded, setIsDbLoaded] = useState(false);
 
   useEffect(() => {
-    async function loadFromDb() {
+    async function loadConversations() {
       try {
-        const archive = await getLatestChatArchive();
-        if (archive) {
-          setChatText(archive.chatText);
-          setParsedChat(archive.parsedChat);
-          setMediaContent(archive.mediaContent);
-        }
-
-        const aiConversation = await getLatestAiConversation();
-        if (aiConversation) {
-          setConversation(aiConversation);
-        }
+        const convos = await getAllConversations();
+        setConversations(convos);
       } catch (error) {
-        console.error("Failed to load from DB", error);
-        toast({
-          variant: "destructive",
-          title: "Database Error",
-          description: "Could not load previous session.",
-        });
-      } finally {
-        setIsDbLoaded(true);
-      }
-    }
-    loadFromDb();
-  }, [toast]);
-
-
-  const handleUpload = async (fileContent: string, media: Record<string, ArrayBuffer>, fileName: string) => {
-    try {
-      // Clear previous chat data and start fresh
-      await clearDb();
-      setChatText(null);
-      setParsedChat([]);
-      setConversation([]);
-      setMediaContent({});
-      setSelectedMessage(null);
-
-      const mediaFiles = Object.keys(media);
-      const parsed = parseChat(fileContent, mediaFiles);
-
-      if (parsed.length === 0) {
         toast({
           variant: 'destructive',
-          title: 'Upload Failed',
-          description: 'The file appears to be empty or in an unsupported format. Please check the file and try again.',
+          title: 'Database Error',
+          description: 'Could not load conversations.',
         });
-        return;
+      } finally {
+        setIsLoading(false);
       }
-      
-      const mediaData: Record<string, { url: string; buffer: ArrayBuffer }> = {};
-      for (const fName in media) {
-        const buffer = media[fName];
-        const mimeType = getMimeType(fName);
-        const blob = new Blob([buffer], { type: mimeType });
-        mediaData[fName] = {
-            url: URL.createObjectURL(blob),
-            buffer: buffer
-        };
-      }
-      
-      await saveChatArchive(fileName, fileContent, parsed, mediaData);
+    }
+    loadConversations();
+  }, [toast]);
 
-      setMediaContent(mediaData);
-      setChatText(fileContent);
-      setParsedChat(parsed);
-      getInitialSummary(fileContent);
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteConversation(id);
+      setConversations(conversations.filter((c) => c.id !== id));
+      toast({
+        title: 'Conversation Deleted',
+        description: 'The conversation has been successfully deleted.',
+      });
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Parsing Error',
-        description: 'Could not parse the chat file. Please ensure it is a valid WhatsApp export.',
+        title: 'Error',
+        description: 'Failed to delete conversation.',
       });
-      console.error('Parsing error:', error);
     }
   };
-  
-  const getInitialSummary = async (content: string) => {
-    setIsLoading(true);
-    setConversation([]);
-    try {
-      const summaryContent = content.length > 12000 ? content.substring(0, 12000) : content;
-      const result = await getAiResponse({ chatLog: summaryContent, query: "قدم ملخصًا موجزًا ​​ومرقمًا للنقاط الرئيسية في هذه الدردشة. ابدأ بـ 'إليك ملخص الدردشة:'"});
-      const initialMessage: AIMessage = { role: 'assistant', content: result };
-      setConversation([initialMessage]);
-      await saveAiConversation([initialMessage]);
-    } catch (error) {
+
+  const handleRename = async (id: number) => {
+    if (!newName.trim()) {
       toast({
         variant: 'destructive',
-        title: 'Analysis Failed',
-        description: 'The AI could not provide an initial summary.',
+        title: 'Invalid Name',
+        description: 'Conversation name cannot be empty.',
       });
-      const errorMessage: AIMessage = { role: 'assistant', content: "I'm sorry, I couldn't generate a summary for this chat. You can still ask me questions about it." };
-      setConversation([errorMessage]);
-       await saveAiConversation([errorMessage]);
-    } finally {
-      setIsLoading(false);
+      return;
     }
-  };
-
-  const handleQuery = async (query: string) => {
-    if (!chatText) return;
-
-    const userMessage: AIMessage = { role: 'user', content: query };
-    const newConversation: AIMessage[] = [...conversation, userMessage];
-    setConversation(newConversation);
-    setIsLoading(true);
-    setQueryInputValue('');
-
     try {
-      let result: string;
-      let assistantMessage: AIMessage;
-
-      if (selectedMessage) {
-         const mediaDataUri = (selectedMessage.fileName && mediaContent[selectedMessage.fileName])
-            ? arrayBufferToDataUri(mediaContent[selectedMessage.fileName].buffer, getMimeType(selectedMessage.fileName))
-            : null;
-        result = await getContextualAiResponse(selectedMessage, mediaDataUri, query);
-        
-        assistantMessage = { role: 'assistant', content: result, contextMessage: selectedMessage };
-
-        // Deselect the message after asking a question about it
-        setSelectedMessage(null); 
-      } else {
-        const imagesToAnalyze = parsedChat
-          .filter(msg => msg.type === 'image' && msg.fileName && mediaContent[msg.fileName])
-          .slice(0, 10) // Limit to first 10 images to avoid large payloads
-          .map(msg => {
-              const media = mediaContent[msg.fileName!];
-              const mimeType = getMimeType(msg.fileName!);
-              return {
-                  fileName: msg.fileName!,
-                  dataUri: arrayBufferToDataUri(media.buffer, mimeType)
-              }
-          });
-                
-        result = await getAiResponse({
-            chatLog: chatText,
-            query,
-            images: imagesToAnalyze,
-        });
-
-        assistantMessage = { role: 'assistant', content: result };
-      }
-
-      const finalConversation = [...newConversation, assistantMessage];
-      setConversation(finalConversation);
-      await saveAiConversation(finalConversation);
+      await updateConversationName(id, newName.trim());
+      setConversations(
+        conversations.map((c) =>
+          c.id === id ? { ...c, name: newName.trim() } : c
+        )
+      );
+      toast({
+        title: 'Conversation Renamed',
+        description: `The conversation was renamed to "${newName.trim()}".`,
+      });
     } catch (error) {
        toast({
         variant: 'destructive',
         title: 'Error',
-        description: (error as Error).message || 'Failed to get a response from the AI.',
+        description: 'Failed to rename conversation.',
       });
-      const errorMessage: AIMessage = { role: 'assistant', content: "I'm sorry, I encountered an error. Please try again." };
-      const finalConversation = [...newConversation, errorMessage];
-      setConversation(finalConversation);
-      await saveAiConversation(finalConversation);
     } finally {
-      setIsLoading(false);
+        setIsRenaming(false);
+        setNewName('');
+        setRenamingId(null);
     }
   };
   
-  const handleMessageSelection = (message: ParsedMessage) => {
-    if (selectedMessage && selectedMessage.timestamp === message.timestamp && selectedMessage.content === message.content) {
-      setSelectedMessage(null); // Deselect if the same message is clicked again
-    } else {
-      setSelectedMessage(message);
-    }
-  };
-
-  if (!isDbLoaded) {
-    return <div className="flex h-screen w-full items-center justify-center">Loading...</div>;
-  }
-
-
-  if (!chatText) {
-    return <ChatUpload onUpload={handleUpload} />;
+  const openRenameDialog = (conversation: Conversation) => {
+    setRenamingId(conversation.id);
+    setNewName(conversation.name);
+    setIsRenaming(true);
   }
 
   return (
-    <SidebarProvider>
-        <div className="flex min-h-screen bg-muted/30">
-            <Sidebar side="left" className="md:w-1/3 lg:w-1/4 xl:w-1/5">
-              <ChatView 
-                chat={parsedChat} 
-                mediaContent={mediaContent} 
-                onMessageSelect={handleMessageSelection}
-                selectedMessage={selectedMessage}
-              />
-            </Sidebar>
-            <main className="flex-1 flex flex-col h-screen">
-                <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-[60px] lg:px-6 md:hidden">
-                    <SidebarTrigger>
-                        <PanelLeft className="h-5 w-5"/>
-                        <span className="sr-only">Toggle sidebar</span>
-                    </SidebarTrigger>
-                </header>
-               <QueryInterface
-                    conversation={conversation}
-                    onQuery={handleQuery}
-                    isLoading={isLoading}
-                    inputValue={queryInputValue}
-                    setInputValue={setQueryInputValue}
-                    mediaContent={mediaContent}
-                  >
-                    {selectedMessage && (
-                      <SelectedMessageView 
-                        message={selectedMessage}
-                        mediaContent={mediaContent}
-                        onClose={() => setSelectedMessage(null)} 
-                      />
-                    )}
-                  </QueryInterface>
-            </main>
-        </div>
-      <Toaster />
-    </SidebarProvider>
+    <div className="flex min-h-screen w-full flex-col bg-muted/40">
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 py-4">
+          <h1 className="text-2xl font-bold">My Conversations</h1>
+      </header>
+      <main className="flex-1 p-4 sm:px-6 sm:py-0 md:gap-8">
+        {isLoading ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i} className="animate-pulse">
+                <CardHeader>
+                  <div className="h-6 w-3/4 rounded bg-muted"></div>
+                  <div className="h-4 w-1/2 rounded bg-muted mt-2"></div>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-4 w-full rounded bg-muted"></div>
+                </CardContent>
+                <CardFooter>
+                    <div className="h-8 w-20 rounded bg-muted"></div>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        ) : conversations.length === 0 ? (
+          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm">
+            <div className="flex flex-col items-center gap-2 text-center">
+              <h3 className="text-2xl font-bold tracking-tight">
+                No conversations yet
+              </h3>
+              <p className="text-sm text-muted-foreground mb-3">
+                Start a new conversation to analyze your WhatsApp chats.
+              </p>
+              <Button onClick={() => router.push('/new')}>
+                <MessageSquarePlus className="mr-2 h-4 w-4" />
+                New Conversation
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {conversations.map((convo) => (
+              <Card key={convo.id}>
+                <CardHeader className="flex flex-row items-start justify-between">
+                    <div className='flex-1'>
+                        <CardTitle className="truncate">{convo.name}</CardTitle>
+                        <CardDescription>
+                            Created{' '}
+                            {formatDistanceToNow(new Date(convo.createdAt), { addSuffix: true })}
+                        </CardDescription>
+                    </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 -mt-2 -mr-2">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openRenameDialog(convo)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        <span>Rename</span>
+                      </DropdownMenuItem>
+                       <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                                <span className='text-destructive'>Delete</span>
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete the
+                                conversation and all its associated data.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(convo.id)}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground line-clamp-3">
+                    {convo.description || 'No description provided.'}
+                  </p>
+                </CardContent>
+                <CardFooter>
+                  <Button asChild className='w-full'>
+                    <Link href={`/chat/${convo.id}`}>Open Chat</Link>
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
+      </main>
+       <AlertDialog open={isRenaming} onOpenChange={setIsRenaming}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Rename Conversation</AlertDialogTitle>
+              <AlertDialogDescription>
+                Enter a new name for this conversation.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="py-4">
+                <Input 
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="New conversation name"
+                    onKeyDown={(e) => e.key === 'Enter' && renamingId && handleRename(renamingId)}
+                />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => { setIsRenaming(false); setRenamingId(null); setNewName(''); }}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => renamingId && handleRename(renamingId)} disabled={!newName.trim()}>
+                Rename
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <Link href="/new" passHref>
+            <Button
+              className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-lg"
+              size="icon"
+            >
+              <MessageSquarePlus className="h-8 w-8" />
+              <span className="sr-only">New Conversation</span>
+            </Button>
+        </Link>
+    </div>
   );
 }
