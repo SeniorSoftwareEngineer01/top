@@ -4,13 +4,15 @@ import { useState, useEffect } from 'react';
 import { ChatUpload } from '@/components/chat-upload';
 import { ChatView } from '@/components/chat-view';
 import { QueryInterface, type AIMessage } from '@/components/query-interface';
-import { Sidebar, SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { Sidebar, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
 import { parseChat, type ParsedMessage } from '@/lib/parser';
 import { getAiResponse, getContextualAiResponse } from './actions';
 import { saveChatArchive, getLatestChatArchive, saveAiConversation, getLatestAiConversation, clearDb } from '@/lib/db';
 import { SelectedMessageView } from '@/components/selected-message-view';
+import { Button } from '@/components/ui/button';
+import { PanelLeft } from 'lucide-react';
 
 // Helper to convert ArrayBuffer to Base64 Data URI
 const arrayBufferToDataUri = (buffer: ArrayBuffer, type: string) => {
@@ -198,25 +200,7 @@ export default function Home() {
                   dataUri: arrayBufferToDataUri(media.buffer, mimeType)
               }
           });
-        
-        const audioMessages = parsedChat.filter(msg => msg.type === 'audio' && msg.fileName && mediaContent[msg.fileName]).slice(0,5);
-        const audioTranscriptions = [];
-        for (const msg of audioMessages) {
-            try {
-                const media = mediaContent[msg.fileName!];
-                const mimeType = getMimeType(msg.fileName!);
-                const audioDataUri = arrayBufferToDataUri(media.buffer, mimeType);
-                const { transcription } = await getAiResponse({ chatLog: '', query: 'transcribe this audio', audioDataUri: audioDataUri });
-                audioTranscriptions.push({
-                    fileName: msg.fileName!,
-                    transcription: transcription,
-                });
-            } catch (error) {
-                console.error(`Transcription failed for ${msg.fileName}:`, error);
-                // Don't add a failed transcription
-            }
-        }
-        
+                
         result = await getAiResponse({
             chatLog: chatText,
             query,
@@ -262,34 +246,39 @@ export default function Home() {
 
   return (
     <SidebarProvider>
-      <div className="grid grid-cols-1 md:grid-cols-3 min-h-screen bg-muted/30">
-        <div className="col-span-1 md:col-span-3 flex flex-col h-screen">
-           <QueryInterface
-                conversation={conversation}
-                onQuery={handleQuery}
-                isLoading={isLoading}
-                inputValue={queryInputValue}
-                setInputValue={setQueryInputValue}
-              >
-                {selectedMessage && (
-                  <SelectedMessageView 
-                    message={selectedMessage}
-                    mediaContent={mediaContent}
-                    onClose={() => setSelectedMessage(null)} 
-                  />
-                )}
-              </QueryInterface>
+        <div className="flex min-h-screen bg-muted/30">
+            <Sidebar side="left" className="md:w-1/3 lg:w-1/4 xl:w-1/5">
+              <ChatView 
+                chat={parsedChat} 
+                mediaContent={mediaContent} 
+                onMessageSelect={handleMessageSelection}
+                selectedMessage={selectedMessage}
+              />
+            </Sidebar>
+            <main className="flex-1 flex flex-col h-screen">
+                <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-[60px] lg:px-6 md:hidden">
+                    <SidebarTrigger>
+                        <PanelLeft className="h-5 w-5"/>
+                        <span className="sr-only">Toggle sidebar</span>
+                    </SidebarTrigger>
+                </header>
+               <QueryInterface
+                    conversation={conversation}
+                    onQuery={handleQuery}
+                    isLoading={isLoading}
+                    inputValue={queryInputValue}
+                    setInputValue={setQueryInputValue}
+                  >
+                    {selectedMessage && (
+                      <SelectedMessageView 
+                        message={selectedMessage}
+                        mediaContent={mediaContent}
+                        onClose={() => setSelectedMessage(null)} 
+                      />
+                    )}
+                  </QueryInterface>
+            </main>
         </div>
-      </div>
-
-      <Sidebar side="left">
-          <ChatView 
-            chat={parsedChat} 
-            mediaContent={mediaContent} 
-            onMessageSelect={handleMessageSelection}
-            selectedMessage={selectedMessage}
-          />
-        </Sidebar>
       <Toaster />
     </SidebarProvider>
   );

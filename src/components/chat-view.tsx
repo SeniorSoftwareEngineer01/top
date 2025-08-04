@@ -36,7 +36,7 @@ export function ChatView({ chat, mediaContent, onMessageSelect, selectedMessage 
 
   return (
     <>
-      <SidebarHeader>
+      <SidebarHeader className="hidden md:flex">
         <div className="flex items-center gap-2 p-2">
           <MessageSquareText className="h-6 w-6 text-primary" />
           <h2 className="text-lg font-semibold">Chat History</h2>
@@ -62,7 +62,7 @@ export function ChatView({ chat, mediaContent, onMessageSelect, selectedMessage 
                 >
                   <div
                     className={cn(
-                      'max-w-[75%] rounded-lg px-3 py-2 shadow-sm flex flex-col cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]',
+                      'max-w-[85%] rounded-lg px-3 py-2 shadow-sm flex flex-col cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]',
                       userMessage
                         ? 'rounded-br-none bg-[hsl(var(--chat-bubble-user-background))] text-[hsl(var(--chat-bubble-user-foreground))]'
                         : 'rounded-bl-none bg-[hsl(var(--chat-bubble-other-background))] text-[hsl(var(--chat-bubble-other-foreground))]',
@@ -82,7 +82,7 @@ export function ChatView({ chat, mediaContent, onMessageSelect, selectedMessage 
                     ) : null}
                     
                     {msg.content && (
-                        <p className="text-base whitespace-pre-wrap" dir="auto">{msg.content}</p>
+                        <p className="text-sm md:text-base whitespace-pre-wrap" dir="auto">{msg.content}</p>
                     )}
 
                     <p className="mt-1 text-right text-xs text-foreground/50 self-end">{msg.timestamp}</p>
