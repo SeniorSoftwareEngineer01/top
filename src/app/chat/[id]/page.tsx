@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { ChatView } from '@/components/chat-view';
 import { QueryInterface, type AIMessage } from '@/components/query-interface';
 import { Sidebar, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
@@ -57,7 +57,7 @@ const getMimeType = (fileName: string): string => {
 };
 
 
-export default function ChatPage({ params }: { params: { id: string } }) {
+export default function ChatPage() {
   const [conversationData, setConversationData] = useState<Conversation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDbLoaded, setIsDbLoaded] = useState(false);
@@ -65,10 +65,11 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const [selectedMessage, setSelectedMessage] = useState<ParsedMessage | null>(null);
   const { toast } = useToast();
   const router = useRouter();
+  const params = useParams();
   const conversationId = Number(params.id);
 
   // Memoize media content with Object URLs
-  const mediaContent = React.useMemo(() => {
+  const mediaContent = useMemo(() => {
     if (!conversationData?.mediaContent) return {};
     const newMediaContent: Record<string, { url: string; buffer: ArrayBuffer }> = {};
     for (const fileName in conversationData.mediaContent) {
@@ -200,11 +201,13 @@ export default function ChatPage({ params }: { params: { id: string } }) {
               }
           });
                 
-        result = await getAiResponse({
+        const response = await getAiResponse({
             chatLog: conversationData.chatText,
             query,
             images: imagesToAnalyze,
         });
+
+        result = response;
 
         assistantMessage = { role: 'assistant', content: result };
       }
