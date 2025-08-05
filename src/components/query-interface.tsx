@@ -64,6 +64,7 @@ const AssistantMessage = ({ msg }: { msg: AIMessage }) => {
   const [diagramHtml, setDiagramHtml] = useState('');
   const [textContent, setTextContent] = useState('');
   const [error, setError] = useState('');
+  const uniqueId = useId();
 
   useEffect(() => {
     const mermaidRegex = /(<pre\s+class="mermaid">[\s\S]*?<\/pre>)/;
@@ -78,9 +79,22 @@ const AssistantMessage = ({ msg }: { msg: AIMessage }) => {
 
       if (mermaidCode && mermaidRef.current) {
         try {
-          window.mermaid.render(`mermaid-svg-${mermaidRef.current.id}`, mermaidCode, (svgCode: string) => {
-            setDiagramHtml(svgCode);
-          });
+          if (window.mermaid) {
+            window.mermaid.render(`mermaid-svg-${uniqueId}`, mermaidCode, (svgCode: string) => {
+              setDiagramHtml(svgCode);
+            });
+          } else {
+             // Retry if mermaid is not loaded yet
+            setTimeout(() => {
+                if (window.mermaid) {
+                    window.mermaid.render(`mermaid-svg-${uniqueId}`, mermaidCode, (svgCode: string) => {
+                        setDiagramHtml(svgCode);
+                    });
+                } else {
+                    setError("Failed to load Mermaid.js library.");
+                }
+            }, 500);
+          }
         } catch (err: any) {
            console.error("Mermaid rendering error:", err);
            setError("Failed to render diagram.");
@@ -89,13 +103,13 @@ const AssistantMessage = ({ msg }: { msg: AIMessage }) => {
     } else {
         setDiagramHtml(''); // Clear previous diagrams if new content doesn't have one
     }
-  }, [msg.content]);
+  }, [msg.content, uniqueId]);
 
   return (
       <div className="prose prose-sm max-w-none prose-p:m-0 [&_table]:my-2 [&_table]:w-full [&_th]:border [&_th]:p-2 [&_td]:border [&_td]:p-2">
           {textContent && <div dangerouslySetInnerHTML={{ __html: textContent }} />}
           
-          <div ref={mermaidRef} id={useId()} className="flex justify-center p-4" dangerouslySetInnerHTML={{ __html: diagramHtml }} />
+          <div ref={mermaidRef} className="flex justify-center p-4" dangerouslySetInnerHTML={{ __html: diagramHtml }} />
           
           {error && <div className="text-destructive p-2">{error}</div>}
       </div>
