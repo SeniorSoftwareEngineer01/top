@@ -11,12 +11,13 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'
 
 export function ChartRenderer({ chartData }: ChartRendererProps) {
   if (!chartData || !chartData.type || !chartData.data) {
-    return <p className='text-destructive'>Invalid chart data provided.</p>;
+    return null; // Don't render anything if data is invalid
   }
   
   const renderChart = () => {
     switch (chartData.type) {
       case 'bar':
+        // Dynamically find the data key (the one that is not 'name')
         const dataKey = Object.keys(chartData.data[0] || {}).find(k => k !== 'name') || 'value';
         return (
             <ResponsiveContainer width="100%" height={300}>
@@ -79,7 +80,7 @@ export function ChartRenderer({ chartData }: ChartRendererProps) {
   }
 
   return (
-    <Card className='my-4'>
+    <Card className='my-4 bg-card/50'>
         <CardHeader>
             {chartData.title && <CardTitle>{chartData.title}</CardTitle>}
             {chartData.description && <CardDescription>{chartData.description}</CardDescription>}

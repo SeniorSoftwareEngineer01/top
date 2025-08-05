@@ -136,8 +136,8 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
                     <ChartRenderer chartData={msg.chartData} />
                   ) : null}
 
-                  {msg.role === 'assistant' ? (
-                      <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: msg.content }} />
+                  {msg.role === 'assistant' && msg.content ? (
+                      <div className="prose prose-sm max-w-none prose-p:m-0" dangerouslySetInnerHTML={{ __html: msg.content }} />
                   ) : (
                       msg.content
                   )}
