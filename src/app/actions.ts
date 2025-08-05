@@ -27,6 +27,7 @@ export async function getContextualAiResponse(message: ParsedMessage, mediaDataU
             chatLog: chatLog,
             query: query,
             images: [],
+            language: 'ar', // Assuming arabic for now, could be passed from client
         };
 
         if (message.type === 'text' && message.content) {

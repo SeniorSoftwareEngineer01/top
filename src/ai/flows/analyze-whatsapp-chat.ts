@@ -22,11 +22,12 @@ const AnalyzeWhatsappChatInputSchema = z.object({
     dataUri: z.string().describe("An image from the chat, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
   })).describe('An array of images present in the chat.').optional(),
   audioDataUri: z.string().describe("An audio file to transcribe and analyze, as a data URI.").optional(),
+  language: z.string().describe('The language of the user query.').optional().default('ar'),
 });
 export type AnalyzeWhatsappChatInput = z.infer<typeof AnalyzeWhatsappChatInputSchema>;
 
 const AnalyzeWhatsappChatOutputSchema = z.object({
-  answer: z.string().describe('The textual answer to the question about the chat log. This can be text, markdown, or a self-contained HTML snippet for diagrams.'),
+  answer: z.string().describe('The textual answer to the chat log analysis. This can be text, markdown, or a self-contained HTML snippet for diagrams.'),
 });
 export type AnalyzeWhatsappChatOutput = z.infer<typeof AnalyzeWhatsappChatOutputSchema>;
 
@@ -117,12 +118,12 @@ const analyzeWhatsappChatFlow = ai.defineFlow(
 
     if (input.audioDataUri) {
       try {
-        const transcriptionResult = await transcribeAudio({ audioDataUri: input.audioDataUri, language: 'ar' });
+        const transcriptionResult = await transcribeAudio({ audioDataUri: input.audioDataUri, language: input.language });
         audioTranscription = transcriptionResult.transcription;
       } catch (e) {
         console.error("Transcription failed within the flow", e);
         // Do not throw, but pass the error as part of the analysis context.
-        audioTranscription = `[Audio transcription failed: ${(e as Error).message}]`;
+        audioTranscription = `[Audio transcription failed. I cannot analyze the audio content. Please inform the user that the audio analysis could not be completed and ask them to try again or summarize the audio content for you.]`;
       }
     }
     
