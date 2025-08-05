@@ -103,7 +103,8 @@ const analyzeWhatsappChatFlow = ai.defineFlow(
         audioTranscription = transcriptionResult.transcription;
       } catch (e) {
         console.error("Transcription failed within the flow", e);
-        return { answer: "I'm sorry, but I was unable to transcribe the selected audio message. Please try another message." };
+        // Don't return here, just proceed without transcription.
+        // The main prompt can inform the user if transcription was part of the query but failed.
       }
     }
     

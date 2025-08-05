@@ -10,7 +10,7 @@ interface ChartRendererProps {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
 export function ChartRenderer({ chartData }: ChartRendererProps) {
-  if (!chartData || !chartData.type || !chartData.data) {
+  if (!chartData || !chartData.type || !Array.isArray(chartData.data) || chartData.data.length === 0) {
     return null; // Don't render anything if data is invalid
   }
   
@@ -18,7 +18,7 @@ export function ChartRenderer({ chartData }: ChartRendererProps) {
     switch (chartData.type) {
       case 'bar':
         // Dynamically find the data key (the one that is not 'name')
-        const dataKey = Object.keys(chartData.data[0] || {}).find(k => k !== 'name') || 'value';
+        const dataKey = Object.keys(chartData.data[0] || {}).find(k => k !== 'name' && typeof chartData.data[0][k] === 'number') || 'value';
         return (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={chartData.data}>
@@ -75,7 +75,29 @@ export function ChartRenderer({ chartData }: ChartRendererProps) {
           </ResponsiveContainer>
         );
       default:
-        return <p className='text-destructive'>Unsupported chart type: {chartData.type}</p>;
+        // Instead of showing an error, we can try to render a bar chart as a fallback
+        // if the data structure is compatible.
+        const fallbackDataKey = Object.keys(chartData.data[0] || {}).find(k => k !== 'name' && typeof chartData.data[0][k] === 'number');
+        if (fallbackDataKey) {
+            return (
+                 <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={chartData.data}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip 
+                            contentStyle={{ 
+                                backgroundColor: 'hsl(var(--background))',
+                                borderColor: 'hsl(var(--border))'
+                            }}
+                        />
+                        <Legend />
+                        <Bar dataKey={fallbackDataKey} fill="hsl(var(--primary))" />
+                    </BarChart>
+                </ResponsiveContainer>
+            )
+        }
+        return <p className='text-sm text-muted-foreground'>Could not render chart type: {chartData.type}</p>;
     }
   }
 
