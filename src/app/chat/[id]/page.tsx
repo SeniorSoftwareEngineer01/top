@@ -143,7 +143,7 @@ export default function ChatPage() {
     try {
       const summaryContent = content.length > 12000 ? content.substring(0, 12000) : content;
       const result = await getAiResponse({ chatLog: summaryContent, query: "قدم ملخصًا موجزًا ​​ومرقمًا للنقاط الرئيسية في هذه الدردشة. ابدأ بـ 'إليك ملخص الدردشة:'"});
-      const initialMessage: AIMessage = { role: 'assistant', content: result.answer, chartData: result.chartData };
+      const initialMessage: AIMessage = { role: 'assistant', content: result.answer };
       await updateAndSaveConversation([initialMessage]);
     } catch (error) {
       toast({
@@ -184,7 +184,7 @@ export default function ChatPage() {
             : null;
         result = await getContextualAiResponse(selectedMessage, mediaDataUri, query);
         
-        assistantMessage = { role: 'assistant', content: result.answer, chartData: result.chartData, contextMessage: selectedMessage };
+        assistantMessage = { role: 'assistant', content: result.answer, contextMessage: selectedMessage };
 
         // Deselect the message after asking a question about it
         setSelectedMessage(null); 
@@ -206,7 +206,7 @@ export default function ChatPage() {
             query,
             images: imagesToAnalyze,
         });
-        assistantMessage = { role: 'assistant', content: result.answer, chartData: result.chartData };
+        assistantMessage = { role: 'assistant', content: result.answer };
       }
 
       const finalConversation = [...newConversationHistory, assistantMessage];

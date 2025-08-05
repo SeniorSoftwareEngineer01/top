@@ -26,8 +26,8 @@ const AnalyzeWhatsappChatInputSchema = z.object({
 export type AnalyzeWhatsappChatInput = z.infer<typeof AnalyzeWhatsappChatInputSchema>;
 
 const AnalyzeWhatsappChatOutputSchema = z.object({
-  answer: z.string().describe('The textual answer to the question about the chat log. This can be text, markdown, or HTML for tables.'),
-  chartData: z.any().describe('If the user requests a chart or diagram, provide the data for it in a structured JSON format suitable for Recharts. Otherwise, this should be null.').optional(),
+  answer: z.string().describe('The textual answer to the question about the chat log. This can be text, markdown, or a self-contained HTML/CSS/JS snippet for charts and diagrams.'),
+  chartData: z.any().describe('This field is DEPRECATED. All visual output should be included in the `answer` field as HTML.').optional(),
 });
 export type AnalyzeWhatsappChatOutput = z.infer<typeof AnalyzeWhatsappChatOutputSchema>;
 
@@ -56,9 +56,7 @@ Your capabilities include:
 - Translating text between languages.
 - Generating beautifully styled responses using HTML. Use tags like <p>, <ul>, <li>, and <strong> to structure your answer for clarity.
 - Generating beautifully styled tables using HTML and Tailwind CSS classes. Use classes like 'bg-card', 'text-card-foreground', 'border-border', 'bg-muted', 'text-muted-foreground' instead of hardcoded colors.
-- IMPORTANT: When asked to create a diagram or chart, DO NOT generate HTML or JavaScript code. Instead, analyze the relevant data and return a structured JSON object in the 'chartData' field. The JSON should be directly usable by the Recharts library. 
-- The supported chart types are 'bar' and 'pie'. If the user asks for an unsupported chart type (like Sankey, 3D, etc.), provide the data in a 'bar' or 'pie' chart format as a fallback, and mention in your textual 'answer' that you've provided an alternative chart type.
-- For example, for a bar chart, the JSON might look like: { "type": "bar", "data": [{ "name": "User A", "messages": 25 }, { "name": "User B", "messages": 40 }] }.
+- IMPORTANT: When asked to create a diagram or chart (like a bar chart, pie chart, Sankey diagram, etc.), you MUST generate a self-contained HTML document for the visualization. This means you will write HTML code that includes JavaScript (in a <script> tag) to render the chart. You can use any charting library you like by importing it from a CDN (e.g., Chart.js, D3.js, ECharts, Google Charts). Do NOT return JSON in the 'chartData' field. The entire visualization must be contained within the 'answer' field as a single HTML string.
 
 You will be given a full chat log, and potentially a set of images and an audio transcription. Use ALL the information provided to fulfill the user's request comprehensively. Think step-by-step.
 
@@ -86,7 +84,7 @@ User's Request:
 Provide your comprehensive analysis below. 
 - For textual answers, use clear language and format the response using HTML (<p>, <ul>, <strong>, etc.) for better readability.
 - For tables, format it using HTML with semantic Tailwind CSS classes that adapt to the theme. Use classes like 'bg-card', 'text-card-foreground', 'border-border', 'bg-muted', 'text-muted-foreground' instead of hardcoded colors like 'bg-white' or 'text-gray-500'. For example: <table class="w-full text-sm text-left rtl:text-right text-card-foreground">.
-- For charts/diagrams, provide the data in the 'chartData' field and a brief explanation in the 'answer' field.
+- For charts/diagrams, provide the complete, self-contained HTML/CSS/JS code in the 'answer' field. Do not use the 'chartData' field.
 `,
 });
 
@@ -101,13 +99,10 @@ const analyzeWhatsappChatFlow = ai.defineFlow(
 
     if (input.audioDataUri) {
       try {
-        // Assume 'en' for now, can be made dynamic later
         const transcriptionResult = await transcribeAudio({ audioDataUri: input.audioDataUri, language: 'ar' });
         audioTranscription = transcriptionResult.transcription;
       } catch (e) {
         console.error("Transcription failed within the flow", e);
-        // Don't return here, just proceed without transcription.
-        // The main prompt can inform the user if transcription was part of the query but failed.
       }
     }
     
