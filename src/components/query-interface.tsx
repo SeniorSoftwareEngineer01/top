@@ -60,39 +60,42 @@ const ContextMessageDisplay = ({ message, mediaContent }: { message: ParsedMessa
 
 
 const AssistantMessage = ({ msg }: { msg: AIMessage }) => {
+  const mermaidRef = useRef<HTMLDivElement>(null);
   const [diagramHtml, setDiagramHtml] = useState('');
+  const [textContent, setTextContent] = useState('');
   const [error, setError] = useState('');
-  const uniqueId = useId();
-
-  const mermaidRegex = /(<pre\s+class="mermaid">[\s\S]*?<\/pre>)/;
-  const match = msg.content.match(mermaidRegex);
-  
-  const textContent = msg.content.replace(mermaidRegex, '').trim();
-  const mermaidContent = match ? match[1] : null;
 
   useEffect(() => {
-    if (mermaidContent && window.mermaid) {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = mermaidContent;
-        const mermaidCode = tempDiv.querySelector('.mermaid')?.textContent || '';
+    const mermaidRegex = /(<pre\s+class="mermaid">[\s\S]*?<\/pre>)/;
+    const match = msg.content.match(mermaidRegex);
+    const mainText = msg.content.replace(mermaidRegex, '').trim();
+    setTextContent(mainText);
 
-        if (mermaidCode) {
-            window.mermaid.render(`mermaid-svg-${uniqueId}`, mermaidCode, (svgCode: string, bindFunctions: (element: Element) => void) => {
-                setDiagramHtml(svgCode);
-            }).catch((err: any) => {
-                console.error("Mermaid rendering error:", err);
-                setError("Failed to render diagram.");
-            });
+    if (match) {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = match[1];
+      const mermaidCode = tempDiv.querySelector('.mermaid')?.textContent || '';
+
+      if (mermaidCode && mermaidRef.current) {
+        try {
+          window.mermaid.render(`mermaid-svg-${mermaidRef.current.id}`, mermaidCode, (svgCode: string) => {
+            setDiagramHtml(svgCode);
+          });
+        } catch (err: any) {
+           console.error("Mermaid rendering error:", err);
+           setError("Failed to render diagram.");
         }
+      }
+    } else {
+        setDiagramHtml(''); // Clear previous diagrams if new content doesn't have one
     }
-  }, [mermaidContent, uniqueId]);
-
+  }, [msg.content]);
 
   return (
       <div className="prose prose-sm max-w-none prose-p:m-0 [&_table]:my-2 [&_table]:w-full [&_th]:border [&_th]:p-2 [&_td]:border [&_td]:p-2">
           {textContent && <div dangerouslySetInnerHTML={{ __html: textContent }} />}
           
-          {diagramHtml && <div className="flex justify-center p-4" dangerouslySetInnerHTML={{ __html: diagramHtml }} />}
+          <div ref={mermaidRef} id={useId()} className="flex justify-center p-4" dangerouslySetInnerHTML={{ __html: diagramHtml }} />
           
           {error && <div className="text-destructive p-2">{error}</div>}
       </div>
