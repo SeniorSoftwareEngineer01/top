@@ -122,14 +122,18 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
                 )}
                 <div
                   className={cn(
-                    'max-w-md rounded-xl px-4 py-3 whitespace-pre-wrap',
+                    'max-w-md rounded-xl px-4 py-3',
                     msg.role === 'assistant'
                       ? 'bg-card text-card-foreground shadow-sm'
-                      : 'bg-primary text-primary-foreground'
+                      : 'bg-primary text-primary-foreground whitespace-pre-wrap'
                   )}
                 >
                   {msg.contextMessage && <ContextMessageDisplay message={msg.contextMessage} mediaContent={mediaContent} />}
-                  {msg.content}
+                  {msg.role === 'assistant' ? (
+                      <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: msg.content }} />
+                  ) : (
+                      msg.content
+                  )}
                 </div>
                  {msg.role === 'user' && (
                   <Avatar className="h-8 w-8 border">
