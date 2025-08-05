@@ -160,7 +160,7 @@ export default function ChatPage() {
             description: 'Please set your API key by typing .key before starting an analysis.',
         });
         setIsLoading(false);
-        const errorMessage: AIMessage = { role: 'assistant', content: "I can't start without a Gemini API Key. Please type `.key` to set one up." };
+        const errorMessage: AIMessage = { role: 'assistant', content: "I can't start without a Gemini API Key. Please type `.key` to set one up or type `.help` for more information." };
         await updateAndSaveConversation([errorMessage]);
         return;
       }
@@ -180,15 +180,49 @@ export default function ChatPage() {
       setIsLoading(false);
     }
   };
+  
+  const showHelpMessage = () => {
+        const helpContent = `
+            <h3>مساعدة WhatsAnalyzer</h3>
+            <p>مرحباً بك في WhatsAnalyzer! هذا التطبيق مصمم لتحليل محادثات واتساب الخاصة بك باستخدام الذكاء الاصطناعي.</p>
+            
+            <h4>الأوامر الخاصة:</h4>
+            <ul>
+                <li><strong>.help</strong>: لعرض رسالة المساعدة هذه.</li>
+                <li><strong>.key</strong>: لإدارة مفتاح Google AI API الخاص بك. يمكنك تعيين مفتاح جديد أو اختباره.</li>
+                <li><strong>.lang</strong>: لتغيير لغة ردود الذكاء الاصطناعي (العربية / الفرنسية).</li>
+                <li><strong>.stt</strong>: لتحويل آخر رسالة من الذكاء الاصطناعي إلى كلام مسموع.</li>
+                <li><strong>.ex</strong>: للخروج من المحادثة الحالية والعودة إلى الصفحة الرئيسية.</li>
+            </ul>
+
+            <h4>طرق الاستخدام الشائعة:</h4>
+            <ul>
+                <li><strong>للتلخيص:</strong> اطلب "لخص هذه المحادثة" أو "ما هي أهم النقاط؟".</li>
+                <li><strong>لطرح أسئلة محددة:</strong> اسأل عن أي شيء في المحادثة، مثل "كم مرة تم ذكر كلمة 'مشروع'؟".</li>
+                <li><strong>لتحليل الوسائط:</strong> انقر نقرًا مزدوجًا على أي رسالة (نص، صورة، صوت) ثم اطرح سؤالك لتحليلها في سياقها.</li>
+                <li><strong>لإنشاء مخططات:</strong> اطلب "أنشئ مخططًا دائريًا يوضح أكثر المتحدثين" أو "ارسم مخططًا زمنيًا للمحادثة".</li>
+            </ul>
+        `;
+        const helpMessage: AIMessage = { role: 'assistant', content: helpContent };
+        const newConversationHistory: AIMessage[] = [...(conversationData?.aiConversation || []), helpMessage];
+        updateAndSaveConversation(newConversationHistory);
+        setQueryInputValue('');
+  }
 
   const handleQuery = async (query: string) => {
     if (!conversationData) return;
+
+    const command = query.trim().toLowerCase();
     
-    if (query.trim().toLowerCase() === '.ex') {
+    if (command === '.help') {
+        showHelpMessage();
+        return;
+    }
+    if (command === '.ex') {
         router.push('/');
         return;
     }
-     if (query.trim().toLowerCase() === '.key') {
+     if (command === '.key') {
       setIsApiKeyDialogOpen(true);
       return;
     }

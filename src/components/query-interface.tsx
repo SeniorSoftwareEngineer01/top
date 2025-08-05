@@ -119,7 +119,7 @@ const AssistantMessage = ({ msg }: { msg: AIMessage }) => {
   }, [mermaidContent, uniqueId]);
 
   return (
-      <div className="prose prose-sm max-w-none prose-p:m-0 [&_table]:my-2 [&_table]:w-full [&_th]:border [&_th]:p-2 [&_td]:border [&_td]:p-2">
+      <div className="prose prose-sm max-w-none prose-p:m-0 [&_table]:my-2 [&_table]:w-full [&_th]:border [&_th]:p-2 [&_td]:border [&_td]:p-2 [&_ul]:my-2 [&_li]:my-0 [&_p]:my-2 [&_h3]:my-3 [&_h4]:my-2">
           {textContent && <div dangerouslySetInnerHTML={{ __html: textContent }} />}
           {mermaidContent && <div ref={mermaidContainerRef} className="flex justify-center p-4" />}
       </div>
@@ -239,7 +239,7 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask a question about the chat, or type .lang or .key..."
+              placeholder="Ask a question about the chat, or type .help for commands..."
               className="pr-20 min-h-[52px] resize-none"
               rows={1}
               disabled={isLoading}
