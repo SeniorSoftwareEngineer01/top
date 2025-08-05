@@ -26,7 +26,8 @@ const AnalyzeWhatsappChatInputSchema = z.object({
 export type AnalyzeWhatsappChatInput = z.infer<typeof AnalyzeWhatsappChatInputSchema>;
 
 const AnalyzeWhatsappChatOutputSchema = z.object({
-  answer: z.string().describe('The answer to the question about the chat log. This can be text, markdown, or code.'),
+  answer: z.string().describe('The textual answer to the question about the chat log. This can be text, markdown, or HTML for tables.'),
+  chartData: z.any().describe('If the user requests a chart or diagram, provide the data for it in a structured JSON format suitable for Recharts. Otherwise, this should be null.').optional(),
 });
 export type AnalyzeWhatsappChatOutput = z.infer<typeof AnalyzeWhatsappChatOutputSchema>;
 
@@ -53,8 +54,8 @@ Your capabilities include:
 - Transcribing audio messages to include their content in the analysis.
 - Describing the content of images to add context.
 - Translating text between languages.
-- Generating structured data outputs like beautifully styled tables using HTML and Tailwind CSS classes.
-- Creating data visualizations by generating HTML/JS code using libraries like Recharts or D3.js when asked to create diagrams or charts.
+- Generating beautifully styled tables using HTML and Tailwind CSS classes.
+- IMPORTANT: When asked to create a diagram or chart, DO NOT generate HTML or JavaScript code. Instead, analyze the relevant data and return a structured JSON object in the 'chartData' field. The JSON should be directly usable by the Recharts library. For example, for a bar chart, it might look like: { "type": "bar", "data": [{ "name": "User A", "messages": 25 }, { "name": "User B", "messages": 40 }] }.
 
 You will be given a full chat log, and potentially a set of images and an audio transcription. Use ALL the information provided to fulfill the user's request comprehensively. Think step-by-step.
 
@@ -79,7 +80,10 @@ A relevant audio transcription:
 User's Request:
 "{{query}}"
 
-Provide your comprehensive analysis below. If asked for a table, format it using HTML with semantic Tailwind CSS classes that adapt to the theme. Use classes like 'bg-card', 'text-card-foreground', 'border-border', 'bg-muted', 'text-muted-foreground' instead of hardcoded colors like 'bg-white' or 'text-gray-500'. For example: <table class="w-full text-sm text-left rtl:text-right text-card-foreground">. If asked for a chart or diagram, provide the complete code required to render it.
+Provide your comprehensive analysis below. 
+- For textual answers, use clear language.
+- For tables, format it using HTML with semantic Tailwind CSS classes that adapt to the theme. Use classes like 'bg-card', 'text-card-foreground', 'border-border', 'bg-muted', 'text-muted-foreground' instead of hardcoded colors like 'bg-white' or 'text-gray-500'. For example: <table class="w-full text-sm text-left rtl:text-right text-card-foreground">.
+- For charts/diagrams, provide the data in the 'chartData' field and a brief explanation in the 'answer' field.
 `,
 });
 

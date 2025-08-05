@@ -10,11 +10,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { TtsDialog } from './tts-dialog';
 import type { ParsedMessage } from '@/lib/parser';
 import { MediaMessage } from './media-message';
+import { ChartRenderer } from './chart-renderer';
 
 export interface AIMessage {
   role: 'user' | 'assistant';
   content: string;
   contextMessage?: ParsedMessage;
+  chartData?: any;
 }
 
 interface QueryInterfaceProps {
@@ -122,13 +124,18 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
                 )}
                 <div
                   className={cn(
-                    'max-w-md rounded-xl px-4 py-3',
+                    'max-w-2xl rounded-xl px-4 py-3 w-full',
                     msg.role === 'assistant'
                       ? 'bg-card text-card-foreground shadow-sm'
-                      : 'bg-primary text-primary-foreground whitespace-pre-wrap'
+                      : 'bg-primary text-primary-foreground whitespace-pre-wrap ml-auto'
                   )}
                 >
                   {msg.contextMessage && <ContextMessageDisplay message={msg.contextMessage} mediaContent={mediaContent} />}
+                  
+                  {msg.chartData ? (
+                    <ChartRenderer chartData={msg.chartData} />
+                  ) : null}
+
                   {msg.role === 'assistant' ? (
                       <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: msg.content }} />
                   ) : (

@@ -1,16 +1,16 @@
 'use server';
 
-import { analyzeWhatsappChat, type AnalyzeWhatsappChatInput } from "@/ai/flows/analyze-whatsapp-chat";
+import { analyzeWhatsappChat, type AnalyzeWhatsappChatInput, type AnalyzeWhatsappChatOutput } from "@/ai/flows/analyze-whatsapp-chat";
 import { textToSpeech as ttsFlow, type TextToSpeechInput, type TextToSpeechOutput } from "@/ai/flows/text-to-speech";
 import { transcribeAudio as transcribeAudioFlow, type TranscribeAudioInput, type TranscribeAudioOutput } from "@/ai/flows/transcribe-audio";
 import type { ParsedMessage } from "@/lib/parser";
 
 
-export async function getAiResponse(input: AnalyzeWhatsappChatInput): Promise<string> {
+export async function getAiResponse(input: AnalyzeWhatsappChatInput): Promise<AnalyzeWhatsappChatOutput> {
     if (input.audioDataUri && !input.images) {
         try {
             const { transcription } = await transcribeAudioFlow({ audioDataUri: input.audioDataUri, language: 'ar' });
-            return transcription;
+            return { answer: transcription };
         } catch (error) {
             console.error('Error in audio transcription via getAiResponse:', error);
             throw new Error("I'm sorry, but I was unable to transcribe the selected audio message. Please try another message.");
@@ -19,14 +19,14 @@ export async function getAiResponse(input: AnalyzeWhatsappChatInput): Promise<st
 
     try {
         const result = await analyzeWhatsappChat(input);
-        return result.answer;
+        return result;
     } catch (error) {
         console.error("Error in getAiResponse:", error);
         throw new Error("Failed to get a response from the AI model.");
     }
 }
 
-export async function getContextualAiResponse(message: ParsedMessage, mediaDataUri: string | null, query: string): Promise<string> {
+export async function getContextualAiResponse(message: ParsedMessage, mediaDataUri: string | null, query: string): Promise<AnalyzeWhatsappChatOutput> {
     try {
         let chatLog = `An user has selected a specific message from a WhatsApp chat to discuss.\n\n`;
         chatLog += `Message Author: ${message.author}\n`;
@@ -59,14 +59,15 @@ export async function getContextualAiResponse(message: ParsedMessage, mediaDataU
         }
 
         const result = await analyzeWhatsappChat(input);
-        return result.answer;
+        return result;
 
-    } catch (error) {
+    } catch (error)
+    {
         console.error("Error in getContextualAiResponse:", error);
         if ((error as Error).message.includes('transcribe')) {
-             return (error as Error).message;
+             return { answer: (error as Error).message };
         }
-        return "I'm sorry, but an unexpected error occurred while analyzing the message. Please try again.";
+        return { answer: "I'm sorry, but an unexpected error occurred while analyzing the message. Please try again." };
     }
 }
 

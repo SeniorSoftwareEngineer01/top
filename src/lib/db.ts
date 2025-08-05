@@ -125,7 +125,14 @@ export async function saveAiConversation(id: number, aiConversation: AIMessage[]
         getRequest.onsuccess = () => {
             const data = getRequest.result;
             if (data) {
-                data.aiConversation = aiConversation;
+                // Ensure chartData which may not be serializable is handled
+                const serializableConversation = aiConversation.map(msg => {
+                    if (msg.chartData) {
+                       return { ...msg, chartData: JSON.parse(JSON.stringify(msg.chartData)) };
+                    }
+                    return msg;
+                });
+                data.aiConversation = serializableConversation;
                 data.updatedAt = new Date();
                 const putRequest = store.put(data);
                 putRequest.onsuccess = () => resolve();
