@@ -79,7 +79,7 @@ A relevant audio transcription:
 User's Request:
 "{{query}}"
 
-Provide your comprehensive analysis below. If asked for a table, format it using HTML with Tailwind CSS classes for a professional look (e.g., <table class="w-full text-sm text-left ...">). If asked for a chart or diagram, provide the complete code required to render it.
+Provide your comprehensive analysis below. If asked for a table, format it using HTML with semantic Tailwind CSS classes that adapt to the theme. Use classes like 'bg-card', 'text-card-foreground', 'border-border', 'bg-muted', 'text-muted-foreground' instead of hardcoded colors like 'bg-white' or 'text-gray-500'. For example: <table class="w-full text-sm text-left rtl:text-right text-card-foreground">. If asked for a chart or diagram, provide the complete code required to render it.
 `,
 });
 
