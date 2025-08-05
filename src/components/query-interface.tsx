@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { Bot, Send, User } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useId } from 'react';
 import { TtsDialog } from './tts-dialog';
 import type { ParsedMessage } from '@/lib/parser';
 import { MediaMessage } from './media-message';
@@ -58,56 +58,57 @@ const ContextMessageDisplay = ({ message, mediaContent }: { message: ParsedMessa
   )
 }
 
+
+const AssistantMessage = ({ msg }: { msg: AIMessage }) => {
+  const [diagramHtml, setDiagramHtml] = useState('');
+  const [error, setError] = useState('');
+  const uniqueId = useId();
+
+  const mermaidRegex = /(<pre\s+class="mermaid">[\s\S]*?<\/pre>)/;
+  const match = msg.content.match(mermaidRegex);
+  
+  const textContent = msg.content.replace(mermaidRegex, '').trim();
+  const mermaidContent = match ? match[1] : null;
+
+  useEffect(() => {
+    if (mermaidContent && window.mermaid) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = mermaidContent;
+        const mermaidCode = tempDiv.querySelector('.mermaid')?.textContent || '';
+
+        if (mermaidCode) {
+            window.mermaid.render(`mermaid-svg-${uniqueId}`, mermaidCode, (svgCode: string, bindFunctions: (element: Element) => void) => {
+                setDiagramHtml(svgCode);
+            }).catch((err: any) => {
+                console.error("Mermaid rendering error:", err);
+                setError("Failed to render diagram.");
+            });
+        }
+    }
+  }, [mermaidContent, uniqueId]);
+
+
+  return (
+      <div className="prose prose-sm max-w-none prose-p:m-0 [&_table]:my-2 [&_table]:w-full [&_th]:border [&_th]:p-2 [&_td]:border [&_td]:p-2">
+          {textContent && <div dangerouslySetInnerHTML={{ __html: textContent }} />}
+          
+          {diagramHtml && <div className="flex justify-center p-4" dangerouslySetInnerHTML={{ __html: diagramHtml }} />}
+          
+          {error && <div className="text-destructive p-2">{error}</div>}
+      </div>
+  );
+};
+
+
 export function QueryInterface({ conversation, onQuery, isLoading, inputValue, setInputValue, children, mediaContent }: QueryInterfaceProps) {
   const [isTtsDialogOpen, setIsTtsDialogOpen] = useState(false);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const conversationEndRef = useRef<HTMLDivElement>(null);
 
 
   useEffect(() => {
-    // Initialize Mermaid.js
-    if (window.mermaid) {
-        try {
-            window.mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
-        } catch (e) {
-            console.error("Failed to initialize Mermaid", e);
-        }
-    }
-  }, []);
-
-  useEffect(() => {
     // Scroll to bottom
     conversationEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-
-    // Render diagrams
-    if (window.mermaid) {
-      try {
-        const mermaidElements = document.querySelectorAll('.mermaid');
-        mermaidElements.forEach(el => {
-          // Add a guard to prevent re-rendering
-          if (!el.hasAttribute('data-processed')) {
-            el.removeAttribute('style'); // Remove inline styles to make it visible before rendering
-            window.mermaid.run({
-              nodes: [el]
-            });
-          }
-        });
-      } catch (e) {
-        console.error("Error rendering Mermaid diagram:", e);
-      }
-    }
   }, [conversation, isLoading]);
-
-
-  useEffect(() => {
-    if (inputValue && textAreaRef.current) {
-      textAreaRef.current.focus();
-      // Move cursor to the end
-      const len = inputValue.length;
-      textAreaRef.current.setSelectionRange(len, len);
-    }
-  }, [inputValue]);
 
 
   const handleQuerySubmit = (e: React.FormEvent) => {
@@ -165,8 +166,8 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
                 >
                   {msg.contextMessage && <ContextMessageDisplay message={msg.contextMessage} mediaContent={mediaContent} />}
                   
-                  {msg.role === 'assistant' && msg.content ? (
-                      <div className="prose prose-sm max-w-none prose-p:m-0 [&_pre.mermaid]:bg-transparent [&_pre.mermaid]:p-0" dangerouslySetInnerHTML={{ __html: msg.content }} />
+                  {msg.role === 'assistant' ? (
+                      <AssistantMessage msg={msg} />
                   ) : (
                       <p className='whitespace-pre-wrap'>{msg.content}</p>
                   )}
@@ -197,7 +198,6 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
           {children}
           <form onSubmit={handleQuerySubmit} className="relative">
             <Textarea
-              ref={textAreaRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
