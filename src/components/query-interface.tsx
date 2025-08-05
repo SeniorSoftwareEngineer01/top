@@ -73,18 +73,21 @@ const AssistantMessage = ({ msg }: { msg: AIMessage }) => {
     const mermaidRegex = /(<pre\s+class="mermaid">[\s\S]*?<\/pre>)/;
     const match = msg.content.match(mermaidRegex);
     
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = match ? match[1] : '';
-    const mermaidCode = tempDiv.querySelector('.mermaid')?.textContent || '';
+    let diagramCode = '';
+    if (match) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = match[1];
+        diagramCode = tempDiv.querySelector('.mermaid')?.textContent || '';
+    }
     
-    setMermaidContent(mermaidCode);
+    setMermaidContent(diagramCode);
 
     const mainText = msg.content.replace(mermaidRegex, '').trim();
     setTextContent(mainText);
 
   }, [msg.content]);
 
-  useEffect(() => {
+ useEffect(() => {
     if (mermaidContent && mermaidContainerRef.current) {
         const renderMermaid = () => {
             if (window.mermaid) {
@@ -100,7 +103,7 @@ const AssistantMessage = ({ msg }: { msg: AIMessage }) => {
                 } catch (err) {
                     console.error("Mermaid rendering error:", err);
                     if (mermaidContainerRef.current) {
-                        mermaidContainerRef.current.innerHTML = '<p class="text-destructive">Failed to render diagram.</p>';
+                        mermaidContainerRef.current.innerHTML = `<p class="text-destructive">Failed to render diagram. The AI may have provided invalid syntax.</p><pre class="text-xs bg-muted p-2 rounded">${mermaidContent}</pre>`;
                     }
                 }
             }
@@ -144,12 +147,15 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
     if (trimmedQuery.toLowerCase() === '.stt') {
       setIsTtsDialogOpen(true);
       setInputValue('');
-    } else if (trimmedQuery.toLowerCase() === '.lang') {
+      return;
+    }
+    if (trimmedQuery.toLowerCase() === '.lang') {
       setIsLangDialogOpen(true);
       setInputValue('');
-    } else {
-      onQuery(trimmedQuery);
+      return;
     }
+    
+    onQuery(trimmedQuery);
   };
   
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -182,20 +188,23 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
               <div
                 key={index}
                 className={cn('flex items-start gap-4', {
-                  'justify-end': msg.role === 'user',
+                  'flex-row-reverse': msg.role === 'user',
                 })}
               >
-                {msg.role === 'assistant' && (
-                  <Avatar className="h-8 w-8 border">
-                    <AvatarFallback className="bg-primary text-primary-foreground"><Bot size={20}/></AvatarFallback>
-                  </Avatar>
-                )}
+                <Avatar className="h-8 w-8 border">
+                    {msg.role === 'assistant' ? (
+                        <AvatarFallback className="bg-primary text-primary-foreground"><Bot size={20}/></AvatarFallback>
+                    ) : (
+                        <AvatarFallback className='bg-accent text-accent-foreground'><User size={20}/></AvatarFallback>
+                    )}
+                </Avatar>
+                
                 <div
                   className={cn(
-                    'max-w-2xl rounded-xl px-4 py-3 w-full',
+                    'max-w-2xl rounded-xl px-4 py-3 w-full shadow-sm',
                     msg.role === 'assistant'
-                      ? 'bg-card text-card-foreground shadow-sm'
-                      : 'bg-primary text-primary-foreground ml-auto'
+                      ? 'bg-card text-card-foreground'
+                      : 'bg-primary text-primary-foreground'
                   )}
                 >
                   {msg.contextMessage && <ContextMessageDisplay message={msg.contextMessage} mediaContent={mediaContent} />}
@@ -206,11 +215,6 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
                       <p className='whitespace-pre-wrap' dir="auto">{msg.content}</p>
                   )}
                 </div>
-                 {msg.role === 'user' && (
-                  <Avatar className="h-8 w-8 border">
-                    <AvatarFallback className='bg-accent text-accent-foreground'><User size={20}/></AvatarFallback>
-                  </Avatar>
-                )}
               </div>
             ))}
             {isLoading && (
@@ -235,7 +239,7 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask a question about the chat..."
+              placeholder="Ask a question about the chat, or type .lang or .key..."
               className="pr-20 min-h-[52px] resize-none"
               rows={1}
               disabled={isLoading}

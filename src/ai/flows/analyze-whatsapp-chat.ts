@@ -7,9 +7,9 @@
  * - AnalyzeWhatsappChatInput - The input type for the analyzeWhatsappChat function.
  * - AnalyzeWhatsappChatOutput - The return type for the analyzeWhatsappChat function.
  */
-
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { genkit, generation, type GenkitError } from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
+import { z } from 'zod';
 import { transcribeAudio } from './transcribe-audio';
 
 const AnalyzeWhatsappChatInputSchema = z.object({
@@ -23,6 +23,7 @@ const AnalyzeWhatsappChatInputSchema = z.object({
   })).describe('An array of images present in the chat.').optional(),
   audioDataUri: z.string().describe("An audio file to transcribe and analyze, as a data URI.").optional(),
   language: z.string().describe('The language for the AI to respond in (e.g., "ar", "fr").').optional().default('ar'),
+  apiKey: z.string().optional().describe('The API key for the Google AI service.'),
 });
 export type AnalyzeWhatsappChatInput = z.infer<typeof AnalyzeWhatsappChatInputSchema>;
 
@@ -35,21 +36,35 @@ export async function analyzeWhatsappChat(input: AnalyzeWhatsappChatInput): Prom
   return analyzeWhatsappChatFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'analyzeWhatsappChatPrompt',
-  input: {schema: z.object({
-      chatLog: z.string(),
-      query: z.string(),
-      images: z.array(z.object({
-        fileName: z.string(),
-        dataUri: z.string(),
-      })).optional(),
-      audioTranscription: z.string().optional(),
-      language: z.string().optional().default('ar'),
-  })},
-  output: {schema: AnalyzeWhatsappChatOutputSchema},
-  prompt: `You are an expert data analyst and visualization assistant, specializing in analyzing and visualizing WhatsApp chat data.
-You will respond in the language specified by the user, which is: {{language}}.
+const analyzeWhatsappChatFlow = genkit.flow(
+  {
+    name: 'analyzeWhatsappChatFlow',
+    inputSchema: AnalyzeWhatsappChatInputSchema,
+    outputSchema: AnalyzeWhatsappChatOutputSchema,
+    stream: null
+  },
+  async (input) => {
+    let audioTranscription: string | undefined;
+
+    if (input.audioDataUri) {
+      try {
+        const transcriptionResult = await transcribeAudio({ audioDataUri: input.audioDataUri, language: input.language, apiKey: input.apiKey });
+        audioTranscription = transcriptionResult.transcription;
+      } catch (e) {
+        console.error("Transcription failed within the flow", e);
+        audioTranscription = `[Audio transcription failed. I cannot analyze the audio content. Please inform the user that the audio analysis could not be completed and ask them to try again or summarize the audio content for you.]`;
+      }
+    }
+    
+    try {
+        const analysisPlugin = googleAI({ apiKey: input.apiKey });
+        const model = analysisPlugin.model('gemini-2.0-flash');
+
+        const { output } = await generation.generate({
+            model,
+            prompt: {
+                text: `You are an expert data analyst and visualization assistant, specializing in analyzing and visualizing WhatsApp chat data.
+You will respond in the language specified by the user, which is: ${input.language}.
 
 Your capabilities include:
 - Analyzing large volumes of text to identify key themes, topics, and user behaviors.
@@ -84,58 +99,41 @@ You will be given a full chat log, and potentially a set of images and an audio 
 Data Provided:
 
 Chat Log:
-{{chatLog}}
+${input.chatLog}
 
-{{#if images}}
+${input.images && input.images.length > 0 ? `
 Images included in the chat:
 You must analyze the content of these images as part of your response.
-{{#each images}}
-- {{fileName}}: {{media url=dataUri}}
-{{/each}}
-{{/if}}
+${input.images.map(img => `- ${img.fileName}: {{media url=${img.dataUri}}}`).join('\n')}
+` : ''}
 
-{{#if audioTranscription}}
+${audioTranscription ? `
 A relevant audio transcription:
-"{{audioTranscription}}"
-{{/if}}
+"${audioTranscription}"
+` : ''}
 
 User's Request:
-"{{query}}"
+"${input.query}"
 
-Provide your comprehensive analysis below. Your response MUST be in {{language}}.
+Provide your comprehensive analysis below. Your response MUST be in ${input.language}.
 - For textual answers, use clear language and format the response using HTML (<p>, <ul>, <strong>, etc.) for better readability.
 - For tables, format it using HTML with semantic Tailwind CSS classes that adapt to the theme. Use classes like 'bg-card', 'text-card-foreground', 'border-border', 'bg-muted', 'text-muted-foreground' instead of hardcoded colors like 'bg-white' or 'text-gray-500'. For example: <table class="w-full text-sm text-left rtl:text-right text-card-foreground">.
 - For charts/diagrams, provide the complete, self-contained Mermaid.js code inside a <pre class="mermaid"> block as instructed above.
 `,
-});
+                media: input.images?.map(img => ({ url: img.dataUri }))
+            },
+            output: {
+                schema: AnalyzeWhatsappChatOutputSchema
+            },
+            context: null,
+            tools: []
+        });
 
-const analyzeWhatsappChatFlow = ai.defineFlow(
-  {
-    name: 'analyzeWhatsappChatFlow',
-    inputSchema: AnalyzeWhatsappChatInputSchema,
-    outputSchema: AnalyzeWhatsappChatOutputSchema,
-  },
-  async (input) => {
-    let audioTranscription: string | undefined;
-
-    if (input.audioDataUri) {
-      try {
-        const transcriptionResult = await transcribeAudio({ audioDataUri: input.audioDataUri, language: input.language });
-        audioTranscription = transcriptionResult.transcription;
-      } catch (e) {
-        console.error("Transcription failed within the flow", e);
-        // Do not throw, but pass the error as part of the analysis context.
-        audioTranscription = `[Audio transcription failed. I cannot analyze the audio content. Please inform the user that the audio analysis could not be completed and ask them to try again or summarize the audio content for you.]`;
-      }
+        return output!;
+    } catch (e) {
+        const err = e as GenkitError;
+        console.error("Error in analysis flow:", err.message, err.stack);
+        throw new Error(err.message || "An unknown error occurred during analysis.");
     }
-    
-    const {output} = await prompt({
-        chatLog: input.chatLog,
-        query: input.query,
-        images: input.images,
-        audioTranscription: audioTranscription,
-        language: input.language,
-    });
-    return output!;
   }
 );

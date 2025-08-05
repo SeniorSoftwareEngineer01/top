@@ -8,14 +8,16 @@
  * - TextToSpeechOutput - The return type for the textToSpeech function.
  */
 
-import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { genkit, generation, type GenkitError } from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
+import { z } from 'zod';
 import wav from 'wav';
 
 const TextToSpeechInputSchema = z.object({
   text: z.string().describe('The text to convert to speech.'),
   voice: z.string().describe('The prebuilt voice to use.').optional().default('Algenib'),
   language: z.string().describe('The language of the text.').optional().default('en-US'),
+  apiKey: z.string().optional().describe('The API key for the service.'),
 });
 export type TextToSpeechInput = z.infer<typeof TextToSpeechInputSchema>;
 
@@ -30,40 +32,50 @@ export async function textToSpeech(input: TextToSpeechInput): Promise<TextToSpee
 }
 
 
-const textToSpeechFlow = ai.defineFlow(
+const textToSpeechFlow = genkit.flow(
   {
     name: 'textToSpeechFlow',
     inputSchema: TextToSpeechInputSchema,
     outputSchema: TextToSpeechOutputSchema,
+    stream: null
   },
   async (input) => {
-    const { media } = await ai.generate({
-      model: 'googleai/gemini-2.5-flash-preview-tts',
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: input.voice! },
+    const ttsPlugin = googleAI({ apiKey: input.apiKey });
+    const model = ttsPlugin.model('gemini-2.5-flash-preview-tts');
+
+    try {
+        const { media } = await generation.generate({
+          model,
+          config: {
+            responseModalities: ['AUDIO'],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: { voiceName: input.voice! },
+              },
+            },
           },
-        },
-      },
-      prompt: input.text,
-    });
+          prompt: input.text,
+        });
 
-    if (!media) {
-      throw new Error('No media returned from TTS model.');
+        if (!media) {
+          throw new Error('No media returned from TTS model.');
+        }
+
+        const audioBuffer = Buffer.from(
+          media.url.substring(media.url.indexOf(',') + 1),
+          'base64'
+        );
+        
+        const wavBase64 = await toWav(audioBuffer);
+
+        return {
+          audioDataUri: `data:audio/wav;base64,${wavBase64}`,
+        };
+    } catch (e) {
+        const err = e as GenkitError;
+        console.error("Error in TTS flow:", err.message, err.stack);
+        throw new Error(err.message || "An unknown error occurred during text-to-speech generation.");
     }
-
-    const audioBuffer = Buffer.from(
-      media.url.substring(media.url.indexOf(',') + 1),
-      'base64'
-    );
-    
-    const wavBase64 = await toWav(audioBuffer);
-
-    return {
-      audioDataUri: `data:audio/wav;base64,${wavBase64}`,
-    };
   }
 );
 

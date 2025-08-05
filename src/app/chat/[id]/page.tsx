@@ -12,6 +12,7 @@ import { getConversation, saveAiConversation, type Conversation } from '@/lib/db
 import { SelectedMessageView } from '@/components/selected-message-view';
 import { PanelLeft, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ApiKeyDialog } from '@/components/api-key-dialog';
 
 // Helper to convert ArrayBuffer to Base64 Data URI
 const arrayBufferToDataUri = (buffer: ArrayBuffer, type: string) => {
@@ -64,6 +65,8 @@ export default function ChatPage() {
   const [queryInputValue, setQueryInputValue] = useState('');
   const [selectedMessage, setSelectedMessage] = useState<ParsedMessage | null>(null);
   const [language, setLanguage] = useState('ar');
+  const [apiKey, setApiKey] = useState('');
+  const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const params = useParams();
@@ -86,6 +89,14 @@ export default function ChatPage() {
     }
     return newMediaContent;
   }, [conversationData?.mediaContent]);
+
+  // Load API Key from localStorage on mount
+  useEffect(() => {
+    const storedApiKey = localStorage.getItem('gemini_api_key');
+    if (storedApiKey) {
+      setApiKey(storedApiKey);
+    }
+  }, []);
 
 
   useEffect(() => {
@@ -142,15 +153,26 @@ export default function ChatPage() {
   const getInitialSummary = async (content: string, convoId: number) => {
     setIsLoading(true);
     try {
+      if (!apiKey) {
+        toast({
+            variant: 'destructive',
+            title: 'API Key Missing',
+            description: 'Please set your API key by typing .key before starting an analysis.',
+        });
+        setIsLoading(false);
+        const errorMessage: AIMessage = { role: 'assistant', content: "I can't start without a Gemini API Key. Please type `.key` to set one up." };
+        await updateAndSaveConversation([errorMessage]);
+        return;
+      }
       const summaryContent = content.length > 12000 ? content.substring(0, 12000) : content;
-      const result = await getAiResponse({ chatLog: summaryContent, query: "قدم ملخصًا موجزًا ​​ومرقمًا للنقاط الرئيسية في هذه الدردشة. ابدأ بـ 'إليك ملخص الدردشة:'", language });
+      const result = await getAiResponse({ chatLog: summaryContent, query: "قدم ملخصًا موجزًا ​​ومرقمًا للنقاط الرئيسية في هذه الدردشة. ابدأ بـ 'إليك ملخص الدردشة:'", language, apiKey });
       const initialMessage: AIMessage = { role: 'assistant', content: result.answer };
       await updateAndSaveConversation([initialMessage]);
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Analysis Failed',
-        description: 'The AI could not provide an initial summary.',
+        description: (error as Error).message || 'The AI could not provide an initial summary.',
       });
       const errorMessage: AIMessage = { role: 'assistant', content: "I'm sorry, I couldn't generate a summary for this chat. You can still ask me questions about it." };
       await updateAndSaveConversation([errorMessage]);
@@ -166,6 +188,20 @@ export default function ChatPage() {
         router.push('/');
         return;
     }
+     if (query.trim().toLowerCase() === '.key') {
+      setIsApiKeyDialogOpen(true);
+      return;
+    }
+    
+    if (!apiKey) {
+      toast({
+        variant: 'destructive',
+        title: 'API Key Missing',
+        description: 'Please set your API key by typing .key before asking a question.',
+      });
+      return;
+    }
+
 
     const currentAiConvo = conversationData.aiConversation || [];
     const userMessage: AIMessage = { role: 'user', content: query };
@@ -183,7 +219,7 @@ export default function ChatPage() {
          const mediaDataUri = (selectedMessage.fileName && mediaContent[selectedMessage.fileName])
             ? arrayBufferToDataUri(mediaContent[selectedMessage.fileName].buffer, getMimeType(selectedMessage.fileName))
             : null;
-        result = await getContextualAiResponse(selectedMessage, mediaDataUri, query, language);
+        result = await getContextualAiResponse(selectedMessage, mediaDataUri, query, language, apiKey);
         
         assistantMessage = { role: 'assistant', content: result.answer, contextMessage: selectedMessage };
 
@@ -207,6 +243,7 @@ export default function ChatPage() {
             query,
             images: imagesToAnalyze,
             language,
+            apiKey,
         });
         assistantMessage = { role: 'assistant', content: result.answer };
       }
@@ -236,12 +273,28 @@ export default function ChatPage() {
     }
   };
 
+  const handleApiKeySave = (newKey: string) => {
+    setApiKey(newKey);
+    localStorage.setItem('gemini_api_key', newKey);
+    toast({
+        title: "API Key Saved",
+        description: "Your new Gemini API key has been saved locally.",
+    });
+    setIsApiKeyDialogOpen(false);
+  }
+
   if (!isDbLoaded || !conversationData) {
     return <div className="flex h-screen w-full items-center justify-center">Loading conversation...</div>;
   }
 
   return (
     <SidebarProvider>
+        <ApiKeyDialog
+            isOpen={isApiKeyDialogOpen}
+            onOpenChange={setIsApiKeyDialogOpen}
+            currentApiKey={apiKey}
+            onSave={handleApiKeySave}
+        />
         <div className="flex min-h-screen bg-muted/30">
             <Sidebar side="left" className="md:w-1/3 lg:w-1/4 xl:w-1/5">
               <ChatView 

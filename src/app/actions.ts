@@ -7,17 +7,20 @@ import type { ParsedMessage } from "@/lib/parser";
 
 
 export async function getAiResponse(input: AnalyzeWhatsappChatInput): Promise<AnalyzeWhatsappChatOutput> {
-    // This action now directly calls the main analysis flow, which handles audio transcription internally.
     try {
         const result = await analyzeWhatsappChat(input);
         return result;
     } catch (error) {
         console.error("Error in getAiResponse:", error);
+        // Provide a more specific error message if the API key is likely invalid
+        if (error instanceof Error && (error.message.includes('API key not valid') || error.message.includes('400'))) {
+            throw new Error("Your API key is not valid. Please check it and try again. You can set a new key by typing `.key`.");
+        }
         throw new Error("Failed to get a response from the AI model.");
     }
 }
 
-export async function getContextualAiResponse(message: ParsedMessage, mediaDataUri: string | null, query: string, language: string): Promise<AnalyzeWhatsappChatOutput> {
+export async function getContextualAiResponse(message: ParsedMessage, mediaDataUri: string | null, query: string, language: string, apiKey: string): Promise<AnalyzeWhatsappChatOutput> {
     try {
         let chatLog = `An user has selected a specific message from a WhatsApp chat to discuss.\n\n`;
         chatLog += `Message Author: ${message.author}\n`;
@@ -28,6 +31,7 @@ export async function getContextualAiResponse(message: ParsedMessage, mediaDataU
             query: query,
             images: [],
             language: language,
+            apiKey: apiKey,
         };
 
         if (message.type === 'text' && message.content) {
@@ -39,8 +43,6 @@ export async function getContextualAiResponse(message: ParsedMessage, mediaDataU
         }
         if (message.type === 'audio' && message.fileName && mediaDataUri) {
              input.audioDataUri = mediaDataUri;
-             // The main flow will handle the transcription and analysis together.
-             // We adjust the query to give context to the AI about the selected audio.
              input.query = `The user has selected a specific audio message. Analyze it in the context of this query: "${query}"`;
         }
         if (message.type === 'video' && message.fileName) {
@@ -50,13 +52,14 @@ export async function getContextualAiResponse(message: ParsedMessage, mediaDataU
             input.chatLog += `The user has selected a file named "${message.fileName}". Analysis of file content is not yet supported, but you can comment on the context if available.\n\n`;
         }
 
-        // Use the main analysis flow for all contextual responses.
         const result = await analyzeWhatsappChat(input);
         return result;
 
-    } catch (error)
-    {
+    } catch (error) {
         console.error("Error in getContextualAiResponse:", error);
+        if (error instanceof Error && (error.message.includes('API key not valid') || error.message.includes('400'))) {
+             throw new Error("Your API key is not valid. Please check it and try again. You can set a new key by typing `.key`.");
+        }
         if ((error as Error).message.includes('transcribe')) {
              return { answer: (error as Error).message };
         }
@@ -71,6 +74,9 @@ export async function textToSpeech(input: TextToSpeechInput): Promise<TextToSpee
       return result;
     } catch (error) {
         console.error("Error in textToSpeech action:", error);
+        if (error instanceof Error && (error.message.includes('API key not valid') || error.message.includes('400'))) {
+             throw new Error("Your API key is not valid. Please check it and try again.");
+        }
         throw new Error("Failed to convert text to speech.");
     }
 }
@@ -84,6 +90,22 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
         return { transcription };
     } catch (error) {
         console.error("Error in transcribeAudio action:", error);
+        if (error instanceof Error && (error.message.includes('API key not valid') || error.message.includes('400'))) {
+             throw new Error("Your API key is not valid. Please check it and try again.");
+        }
         throw new Error("I'm sorry, but I was unable to transcribe the selected audio message. Please try another message.");
+    }
+}
+
+
+export async function testApiKey(apiKey: string): Promise<{ valid: boolean; message: string }> {
+    try {
+        // We use a simple, low-cost text-only generation to test the key.
+        const testFlow = (await import('@/ai/flows/test-api-key')).testApiKeyFlow;
+        await testFlow({ apiKey });
+        return { valid: true, message: 'API Key is valid and working correctly.' };
+    } catch (error) {
+        console.error("API Key test failed:", error);
+        return { valid: false, message: 'API Key is invalid or expired. Please check the key and try again.' };
     }
 }
