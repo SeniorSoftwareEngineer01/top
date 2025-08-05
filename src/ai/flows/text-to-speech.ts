@@ -8,77 +8,89 @@
  * - TextToSpeechOutput - The return type for the textToSpeech function.
  */
 
-import { genkit, generation, type GenkitError } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
-import { z } from 'zod';
+import {type GenkitError} from 'genkit';
+import {googleAI} from '@genkit-ai/googleai';
+import {z} from 'zod';
 import wav from 'wav';
+import {ai} from '../genkit';
 
 const TextToSpeechInputSchema = z.object({
   text: z.string().describe('The text to convert to speech.'),
-  voice: z.string().describe('The prebuilt voice to use.').optional().default('Algenib'),
-  language: z.string().describe('The language of the text.').optional().default('en-US'),
+  voice: z
+    .string()
+    .describe('The prebuilt voice to use.')
+    .optional()
+    .default('Algenib'),
+  language: z
+    .string()
+    .describe('The language of the text.')
+    .optional()
+    .default('en-US'),
   apiKey: z.string().optional().describe('The API key for the service.'),
 });
 export type TextToSpeechInput = z.infer<typeof TextToSpeechInputSchema>;
 
 const TextToSpeechOutputSchema = z.object({
-  audioDataUri: z.string().describe('The generated audio as a base64-encoded WAV data URI.'),
+  audioDataUri: z
+    .string()
+    .describe('The generated audio as a base64-encoded WAV data URI.'),
 });
 export type TextToSpeechOutput = z.infer<typeof TextToSpeechOutputSchema>;
 
-
-export async function textToSpeech(input: TextToSpeechInput): Promise<TextToSpeechOutput> {
+export async function textToSpeech(
+  input: TextToSpeechInput
+): Promise<TextToSpeechOutput> {
   return textToSpeechFlow(input);
 }
 
-
-const textToSpeechFlow = genkit.flow(
+const textToSpeechFlow = ai.defineFlow(
   {
     name: 'textToSpeechFlow',
     inputSchema: TextToSpeechInputSchema,
     outputSchema: TextToSpeechOutputSchema,
-    stream: null
   },
-  async (input) => {
-    const ttsPlugin = googleAI({ apiKey: input.apiKey });
+  async input => {
+    const ttsPlugin = googleAI({apiKey: input.apiKey});
     const model = ttsPlugin.model('gemini-2.5-flash-preview-tts');
 
     try {
-        const { media } = await generation.generate({
-          model,
-          config: {
-            responseModalities: ['AUDIO'],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: { voiceName: input.voice! },
-              },
+      const {media} = await ai.generate({
+        model,
+        config: {
+          responseModalities: ['AUDIO'],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {voiceName: input.voice!},
             },
           },
-          prompt: input.text,
-        });
+        },
+        prompt: input.text,
+      });
 
-        if (!media) {
-          throw new Error('No media returned from TTS model.');
-        }
+      if (!media) {
+        throw new Error('No media returned from TTS model.');
+      }
 
-        const audioBuffer = Buffer.from(
-          media.url.substring(media.url.indexOf(',') + 1),
-          'base64'
-        );
-        
-        const wavBase64 = await toWav(audioBuffer);
+      const audioBuffer = Buffer.from(
+        media.url.substring(media.url.indexOf(',') + 1),
+        'base64'
+      );
 
-        return {
-          audioDataUri: `data:audio/wav;base64,${wavBase64}`,
-        };
+      const wavBase64 = await toWav(audioBuffer);
+
+      return {
+        audioDataUri: `data:audio/wav;base64,${wavBase64}`,
+      };
     } catch (e) {
-        const err = e as GenkitError;
-        console.error("Error in TTS flow:", err.message, err.stack);
-        throw new Error(err.message || "An unknown error occurred during text-to-speech generation.");
+      const err = e as GenkitError;
+      console.error('Error in TTS flow:', err.message, err.stack);
+      throw new Error(
+        err.message ||
+          'An unknown error occurred during text-to-speech generation.'
+      );
     }
   }
 );
-
 
 async function toWav(
   pcmData: Buffer,
@@ -95,7 +107,7 @@ async function toWav(
 
     const bufs: Buffer[] = [];
     writer.on('error', reject);
-    writer.on('data', (d) => {
+    writer.on('data', d => {
       bufs.push(d);
     });
     writer.on('end', () => {
