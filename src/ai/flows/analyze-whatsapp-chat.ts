@@ -87,8 +87,7 @@ const analyzeWhatsappChatFlow = ai.defineFlow(
     }
 
     try {
-      const analysisPlugin = googleAI({apiKey: input.apiKey});
-      const model = analysisPlugin.model('gemini-2.0-flash');
+      const model = googleAI.model('gemini-2.0-flash', { apiKey: input.apiKey });
 
       const promptParts: (string | {media: {url: string}})[] = [
         `You are an expert data analyst and visualization assistant, specializing in analyzing and visualizing WhatsApp chat data.

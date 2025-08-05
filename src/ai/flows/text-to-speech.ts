@@ -50,8 +50,7 @@ const textToSpeechFlow = ai.defineFlow(
     outputSchema: TextToSpeechOutputSchema,
   },
   async input => {
-    const ttsPlugin = googleAI({apiKey: input.apiKey});
-    const model = ttsPlugin.model('gemini-2.5-flash-preview-tts');
+    const model = googleAI.model('gemini-2.5-flash-preview-tts', { apiKey: input.apiKey });
 
     try {
       const {media} = await ai.generate({

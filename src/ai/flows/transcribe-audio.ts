@@ -47,8 +47,7 @@ const transcribeAudioFlow = ai.defineFlow(
   },
   async input => {
     try {
-      const transcribePlugin = googleAI({apiKey: input.apiKey});
-      const model = transcribePlugin.model('gemini-2.0-flash');
+      const model = googleAI.model('gemini-2.0-flash', { apiKey: input.apiKey });
 
       const {text} = await ai.generate({
         model,

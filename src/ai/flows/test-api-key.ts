@@ -18,8 +18,7 @@ export const testApiKeyFlow = ai.defineFlow(
     outputSchema: z.void(),
   },
   async input => {
-    const testPlugin = googleAI({apiKey: input.apiKey});
-    const model = testPlugin.model('gemini-2.0-flash');
+    const model = googleAI.model('gemini-2.0-flash', { apiKey: input.apiKey });
 
     // A simple and fast request to check for authentication errors.
     await ai.generate({
