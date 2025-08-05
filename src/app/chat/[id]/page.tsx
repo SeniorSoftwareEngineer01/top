@@ -13,6 +13,7 @@ import { SelectedMessageView } from '@/components/selected-message-view';
 import { PanelLeft, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ApiKeyDialog } from '@/components/api-key-dialog';
+import { HelpDialog } from '@/components/help-dialog';
 
 // Helper to convert ArrayBuffer to Base64 Data URI
 const arrayBufferToDataUri = (buffer: ArrayBuffer, type: string) => {
@@ -67,6 +68,7 @@ export default function ChatPage() {
   const [language, setLanguage] = useState('ar');
   const [apiKey, setApiKey] = useState('');
   const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
+  const [isHelpDialogOpen, setIsHelpDialogOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const params = useParams();
@@ -181,33 +183,6 @@ export default function ChatPage() {
     }
   };
   
-  const showHelpMessage = () => {
-        const helpContent = `
-            <h3>مساعدة WhatsAnalyzer</h3>
-            <p>مرحباً بك في WhatsAnalyzer! هذا التطبيق مصمم لتحليل محادثات واتساب الخاصة بك باستخدام الذكاء الاصطناعي.</p>
-            
-            <h4>الأوامر الخاصة:</h4>
-            <ul>
-                <li><strong>.help</strong>: لعرض رسالة المساعدة هذه.</li>
-                <li><strong>.key</strong>: لإدارة مفتاح Google AI API الخاص بك. يمكنك تعيين مفتاح جديد أو اختباره.</li>
-                <li><strong>.lang</strong>: لتغيير لغة ردود الذكاء الاصطناعي (العربية / الفرنسية).</li>
-                <li><strong>.stt</strong>: لتحويل آخر رسالة من الذكاء الاصطناعي إلى كلام مسموع.</li>
-                <li><strong>.ex</strong>: للخروج من المحادثة الحالية والعودة إلى الصفحة الرئيسية.</li>
-            </ul>
-
-            <h4>طرق الاستخدام الشائعة:</h4>
-            <ul>
-                <li><strong>للتلخيص:</strong> اطلب "لخص هذه المحادثة" أو "ما هي أهم النقاط؟".</li>
-                <li><strong>لطرح أسئلة محددة:</strong> اسأل عن أي شيء في المحادثة، مثل "كم مرة تم ذكر كلمة 'مشروع'؟".</li>
-                <li><strong>لتحليل الوسائط:</strong> انقر نقرًا مزدوجًا على أي رسالة (نص، صورة، صوت) ثم اطرح سؤالك لتحليلها في سياقها.</li>
-                <li><strong>لإنشاء مخططات:</strong> اطلب "أنشئ مخططًا دائريًا يوضح أكثر المتحدثين" أو "ارسم مخططًا زمنيًا للمحادثة".</li>
-            </ul>
-        `;
-        const helpMessage: AIMessage = { role: 'assistant', content: helpContent };
-        const newConversationHistory: AIMessage[] = [...(conversationData?.aiConversation || []), helpMessage];
-        updateAndSaveConversation(newConversationHistory);
-        setQueryInputValue('');
-  }
 
   const handleQuery = async (query: string) => {
     if (!conversationData) return;
@@ -215,7 +190,8 @@ export default function ChatPage() {
     const command = query.trim().toLowerCase();
     
     if (command === '.help') {
-        showHelpMessage();
+        setIsHelpDialogOpen(true);
+        setQueryInputValue('');
         return;
     }
     if (command === '.ex') {
@@ -323,6 +299,7 @@ export default function ChatPage() {
 
   return (
     <SidebarProvider>
+        <HelpDialog isOpen={isHelpDialogOpen} onOpenChange={setIsHelpDialogOpen} />
         <ApiKeyDialog
             isOpen={isApiKeyDialogOpen}
             onOpenChange={setIsApiKeyDialogOpen}
@@ -373,3 +350,5 @@ export default function ChatPage() {
     </SidebarProvider>
   );
 }
+
+    
