@@ -26,7 +26,7 @@ const AnalyzeWhatsappChatInputSchema = z.object({
 export type AnalyzeWhatsappChatInput = z.infer<typeof AnalyzeWhatsappChatInputSchema>;
 
 const AnalyzeWhatsappChatOutputSchema = z.object({
-  answer: z.string().describe('The textual answer to the question about the chat log. This can be text, markdown, or a self-contained HTML/CSS/JS snippet for charts and diagrams.'),
+  answer: z.string().describe('The textual answer to the question about the chat log. This can be text, markdown, or a self-contained HTML snippet for diagrams.'),
 });
 export type AnalyzeWhatsappChatOutput = z.infer<typeof AnalyzeWhatsappChatOutputSchema>;
 
@@ -46,7 +46,7 @@ const prompt = ai.definePrompt({
       audioTranscription: z.string().optional(),
   })},
   output: {schema: AnalyzeWhatsappChatOutputSchema},
-  prompt: `You are an expert data analyst and front-end developer, specializing in analyzing and visualizing WhatsApp chat data.
+  prompt: `You are an expert data analyst and visualization assistant, specializing in analyzing and visualizing WhatsApp chat data.
 
 Your capabilities include:
 - Analyzing large volumes of text to identify key themes, topics, and user behaviors.
@@ -55,7 +55,26 @@ Your capabilities include:
 - Translating text between languages.
 - Generating beautifully styled responses using HTML. Use tags like <p>, <ul>, <li>, and <strong> to structure your answer for clarity.
 - Generating beautifully styled tables using HTML and Tailwind CSS classes. Use classes like 'bg-card', 'text-card-foreground', 'border-border', 'bg-muted', 'text-muted-foreground' instead of hardcoded colors.
-- IMPORTANT: When asked to create a diagram or chart (like a bar chart, pie chart, Sankey diagram, etc.), you MUST generate a self-contained HTML document for the visualization. This means you will write HTML code that includes JavaScript (in a <script> tag) to render the chart. You can use any charting library you like by importing it from a CDN (e.g., Chart.js, D3.js, ECharts, Google Charts). The entire visualization must be contained within the 'answer' field as a single HTML string.
+
+**== VERY IMPORTANT: DIAGRAM GENERATION ==**
+When asked to create a diagram or chart (like a sequence diagram, flowchart, pie chart, etc.), you MUST generate the diagram code using **Mermaid.js syntax**.
+Then, you MUST wrap the Mermaid code in a <pre class="mermaid">...</pre> block.
+The application will automatically render this into a visual diagram.
+
+Example for a sequence diagram:
+<pre class="mermaid">
+sequenceDiagram
+    Alice->>John: Hello John, how are you?
+    John-->>Alice: Great!
+</pre>
+
+Example for a pie chart:
+<pre class="mermaid">
+pie title Pets adopted by volunteers
+    "Dogs" : 386
+    "Cats" : 85
+    "Rats" : 15
+</pre>
 
 You will be given a full chat log, and potentially a set of images and an audio transcription. Use ALL the information provided to fulfill the user's request comprehensively. Think step-by-step.
 
@@ -83,7 +102,7 @@ User's Request:
 Provide your comprehensive analysis below. 
 - For textual answers, use clear language and format the response using HTML (<p>, <ul>, <strong>, etc.) for better readability.
 - For tables, format it using HTML with semantic Tailwind CSS classes that adapt to the theme. Use classes like 'bg-card', 'text-card-foreground', 'border-border', 'bg-muted', 'text-muted-foreground' instead of hardcoded colors like 'bg-white' or 'text-gray-500'. For example: <table class="w-full text-sm text-left rtl:text-right text-card-foreground">.
-- For charts/diagrams, provide the complete, self-contained HTML/CSS/JS code in the 'answer' field.
+- For charts/diagrams, provide the complete, self-contained Mermaid.js code inside a <pre class="mermaid"> block as instructed above.
 `,
 });
 

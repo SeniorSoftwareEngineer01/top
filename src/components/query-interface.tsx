@@ -11,11 +11,17 @@ import { TtsDialog } from './tts-dialog';
 import type { ParsedMessage } from '@/lib/parser';
 import { MediaMessage } from './media-message';
 
+// Make mermaid available globally
+declare global {
+    interface Window {
+        mermaid: any;
+    }
+}
+
 export interface AIMessage {
   role: 'user' | 'assistant';
   content: string;
   contextMessage?: ParsedMessage;
-  chartData?: any; // This is now deprecated and unused, but kept for compatibility with old data.
 }
 
 interface QueryInterfaceProps {
@@ -56,15 +62,37 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
   const [isTtsDialogOpen, setIsTtsDialogOpen] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const conversationEndRef = useRef<HTMLDivElement>(null);
+
 
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTo({
-        top: scrollAreaRef.current.scrollHeight,
-        behavior: 'smooth',
-      });
+    // Initialize Mermaid.js
+    if (window.mermaid) {
+        window.mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
+    }
+  }, []);
+
+  useEffect(() => {
+    // Scroll to bottom
+    conversationEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+
+    // Render diagrams
+    if (window.mermaid) {
+        // We look for unprocessed mermaid divs and render them.
+        const mermaidDivs = document.querySelectorAll('pre.mermaid:not([data-processed])');
+        if (mermaidDivs.length > 0) {
+            window.mermaid.run({
+                nodes: mermaidDivs
+            });
+            // We mark them as processed to avoid re-rendering
+             mermaidDivs.forEach((div) => {
+                const preElement = div as HTMLElement;
+                preElement.style.visibility = 'visible';
+            });
+        }
     }
   }, [conversation, isLoading]);
+
 
   useEffect(() => {
     if (inputValue && textAreaRef.current) {
@@ -107,7 +135,7 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
     />
     <div className="flex h-screen flex-col bg-muted/30">
       <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full" ref={scrollAreaRef}>
+        <ScrollArea className="h-full">
           <div className="mx-auto max-w-3xl p-4 md:p-8 space-y-6">
             {conversation.map((msg, index) => (
               <div
@@ -132,7 +160,7 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
                   {msg.contextMessage && <ContextMessageDisplay message={msg.contextMessage} mediaContent={mediaContent} />}
                   
                   {msg.role === 'assistant' && msg.content ? (
-                      <div className="prose prose-sm max-w-none prose-p:m-0" dangerouslySetInnerHTML={{ __html: msg.content }} />
+                      <div className="prose prose-sm max-w-none prose-p:m-0 [&_pre.mermaid]:bg-transparent [&_pre.mermaid]:p-0" dangerouslySetInnerHTML={{ __html: msg.content.replace(/<pre class="mermaid">/g, '<pre class="mermaid" style="visibility: hidden;">') }} />
                   ) : (
                       <p className='whitespace-pre-wrap'>{msg.content}</p>
                   )}
@@ -154,6 +182,7 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
                 </div>
               </div>
             )}
+             <div ref={conversationEndRef} />
           </div>
         </ScrollArea>
       </div>
