@@ -39,8 +39,8 @@ export async function getContextualAiResponse(message: ParsedMessage, mediaDataU
         if (message.type === 'audio' && message.fileName && mediaDataUri) {
              input.audioDataUri = mediaDataUri;
              // The main flow will handle the transcription and analysis together.
-             const baseQuery = `The user has selected an audio message. First, transcribe it, then answer the user's query about the content: "${query}"`;
-             input.query = baseQuery;
+             // We adjust the query to give context to the AI about the selected audio.
+             input.query = `The user has selected a specific audio message. Analyze it in the context of this query: "${query}"`;
         }
         if (message.type === 'video' && message.fileName) {
             input.chatLog += `The user has selected a video file named "${message.fileName}". Analysis of video content is not yet supported, but you can comment on the context if available.\n\n`;

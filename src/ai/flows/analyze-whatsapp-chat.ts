@@ -102,6 +102,8 @@ const analyzeWhatsappChatFlow = ai.defineFlow(
         audioTranscription = transcriptionResult.transcription;
       } catch (e) {
         console.error("Transcription failed within the flow", e);
+        // Do not throw, but pass the error as part of the analysis context.
+        audioTranscription = `[Audio transcription failed: ${(e as Error).message}]`;
       }
     }
     
