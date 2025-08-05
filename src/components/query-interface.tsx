@@ -139,7 +139,7 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
                   {msg.role === 'assistant' && msg.content ? (
                       <div className="prose prose-sm max-w-none prose-p:m-0" dangerouslySetInnerHTML={{ __html: msg.content }} />
                   ) : (
-                      msg.content
+                      <p className='whitespace-pre-wrap'>{msg.content}</p>
                   )}
                 </div>
                  {msg.role === 'user' && (

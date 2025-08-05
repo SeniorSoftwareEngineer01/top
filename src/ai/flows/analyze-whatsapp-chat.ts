@@ -54,7 +54,8 @@ Your capabilities include:
 - Transcribing audio messages to include their content in the analysis.
 - Describing the content of images to add context.
 - Translating text between languages.
-- Generating beautifully styled tables using HTML and Tailwind CSS classes.
+- Generating beautifully styled responses using HTML. Use tags like <p>, <ul>, <li>, and <strong> to structure your answer for clarity.
+- Generating beautifully styled tables using HTML and Tailwind CSS classes. Use classes like 'bg-card', 'text-card-foreground', 'border-border', 'bg-muted', 'text-muted-foreground' instead of hardcoded colors.
 - IMPORTANT: When asked to create a diagram or chart, DO NOT generate HTML or JavaScript code. Instead, analyze the relevant data and return a structured JSON object in the 'chartData' field. The JSON should be directly usable by the Recharts library. For example, for a bar chart, it might look like: { "type": "bar", "data": [{ "name": "User A", "messages": 25 }, { "name": "User B", "messages": 40 }] }.
 
 You will be given a full chat log, and potentially a set of images and an audio transcription. Use ALL the information provided to fulfill the user's request comprehensively. Think step-by-step.
@@ -81,7 +82,7 @@ User's Request:
 "{{query}}"
 
 Provide your comprehensive analysis below. 
-- For textual answers, use clear language.
+- For textual answers, use clear language and format the response using HTML (<p>, <ul>, <strong>, etc.) for better readability.
 - For tables, format it using HTML with semantic Tailwind CSS classes that adapt to the theme. Use classes like 'bg-card', 'text-card-foreground', 'border-border', 'bg-muted', 'text-muted-foreground' instead of hardcoded colors like 'bg-white' or 'text-gray-500'. For example: <table class="w-full text-sm text-left rtl:text-right text-card-foreground">.
 - For charts/diagrams, provide the data in the 'chartData' field and a brief explanation in the 'answer' field.
 `,
