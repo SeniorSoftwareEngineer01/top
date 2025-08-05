@@ -60,10 +60,9 @@ const ContextMessageDisplay = ({ message, mediaContent }: { message: ParsedMessa
 
 
 const AssistantMessage = ({ msg }: { msg: AIMessage }) => {
-  const mermaidRef = useRef<HTMLDivElement>(null);
-  const [diagramHtml, setDiagramHtml] = useState('');
+  const mermaidContainerRef = useRef<HTMLDivElement>(null);
   const [textContent, setTextContent] = useState('');
-  const [error, setError] = useState('');
+  const [mermaidContent, setMermaidContent] = useState('');
   const uniqueId = useId();
 
   useEffect(() => {
@@ -76,42 +75,45 @@ const AssistantMessage = ({ msg }: { msg: AIMessage }) => {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = match[1];
       const mermaidCode = tempDiv.querySelector('.mermaid')?.textContent || '';
-
-      if (mermaidCode && mermaidRef.current) {
-        try {
-          if (window.mermaid) {
-            window.mermaid.render(`mermaid-svg-${uniqueId}`, mermaidCode, (svgCode: string) => {
-              setDiagramHtml(svgCode);
-            });
-          } else {
-             // Retry if mermaid is not loaded yet
-            setTimeout(() => {
-                if (window.mermaid) {
-                    window.mermaid.render(`mermaid-svg-${uniqueId}`, mermaidCode, (svgCode: string) => {
-                        setDiagramHtml(svgCode);
-                    });
-                } else {
-                    setError("Failed to load Mermaid.js library.");
-                }
-            }, 500);
-          }
-        } catch (err: any) {
-           console.error("Mermaid rendering error:", err);
-           setError("Failed to render diagram.");
-        }
-      }
+      setMermaidContent(mermaidCode);
     } else {
-        setDiagramHtml(''); // Clear previous diagrams if new content doesn't have one
+      setMermaidContent('');
     }
-  }, [msg.content, uniqueId]);
+  }, [msg.content]);
+
+  useEffect(() => {
+    if (mermaidContent && mermaidContainerRef.current) {
+        const renderMermaid = () => {
+            if (window.mermaid) {
+                try {
+                    const mermaidId = `mermaid-svg-${uniqueId}`;
+                    window.mermaid.render(mermaidId, mermaidContent, (svgCode: string) => {
+                       if (mermaidContainerRef.current) {
+                           mermaidContainerRef.current.innerHTML = svgCode;
+                       }
+                    });
+                } catch (err) {
+                    console.error("Mermaid rendering error:", err);
+                    if (mermaidContainerRef.current) {
+                        mermaidContainerRef.current.innerHTML = '<p class="text-destructive">Failed to render diagram.</p>';
+                    }
+                }
+            }
+        };
+
+        // Retry if mermaid is not loaded yet
+        if (!window.mermaid) {
+            setTimeout(renderMermaid, 100);
+        } else {
+            renderMermaid();
+        }
+    }
+  }, [mermaidContent, uniqueId]);
 
   return (
       <div className="prose prose-sm max-w-none prose-p:m-0 [&_table]:my-2 [&_table]:w-full [&_th]:border [&_th]:p-2 [&_td]:border [&_td]:p-2">
           {textContent && <div dangerouslySetInnerHTML={{ __html: textContent }} />}
-          
-          <div ref={mermaidRef} className="flex justify-center p-4" dangerouslySetInnerHTML={{ __html: diagramHtml }} />
-          
-          {error && <div className="text-destructive p-2">{error}</div>}
+          {mermaidContent && <div ref={mermaidContainerRef} className="flex justify-center p-4" />}
       </div>
   );
 };
@@ -178,7 +180,7 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
                     'max-w-2xl rounded-xl px-4 py-3 w-full',
                     msg.role === 'assistant'
                       ? 'bg-card text-card-foreground shadow-sm'
-                      : 'bg-primary text-primary-foreground whitespace-pre-wrap ml-auto'
+                      : 'bg-primary text-primary-foreground ml-auto'
                   )}
                 >
                   {msg.contextMessage && <ContextMessageDisplay message={msg.contextMessage} mediaContent={mediaContent} />}
@@ -186,7 +188,7 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
                   {msg.role === 'assistant' ? (
                       <AssistantMessage msg={msg} />
                   ) : (
-                      <p className='whitespace-pre-wrap'>{msg.content}</p>
+                      <p className='whitespace-pre-wrap' dir="auto">{msg.content}</p>
                   )}
                 </div>
                  {msg.role === 'user' && (
