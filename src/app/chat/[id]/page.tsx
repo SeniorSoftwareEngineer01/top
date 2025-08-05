@@ -63,6 +63,7 @@ export default function ChatPage() {
   const [isDbLoaded, setIsDbLoaded] = useState(false);
   const [queryInputValue, setQueryInputValue] = useState('');
   const [selectedMessage, setSelectedMessage] = useState<ParsedMessage | null>(null);
+  const [language, setLanguage] = useState('ar');
   const { toast } = useToast();
   const router = useRouter();
   const params = useParams();
@@ -142,7 +143,7 @@ export default function ChatPage() {
     setIsLoading(true);
     try {
       const summaryContent = content.length > 12000 ? content.substring(0, 12000) : content;
-      const result = await getAiResponse({ chatLog: summaryContent, query: "قدم ملخصًا موجزًا ​​ومرقمًا للنقاط الرئيسية في هذه الدردشة. ابدأ بـ 'إليك ملخص الدردشة:'"});
+      const result = await getAiResponse({ chatLog: summaryContent, query: "قدم ملخصًا موجزًا ​​ومرقمًا للنقاط الرئيسية في هذه الدردشة. ابدأ بـ 'إليك ملخص الدردشة:'", language });
       const initialMessage: AIMessage = { role: 'assistant', content: result.answer };
       await updateAndSaveConversation([initialMessage]);
     } catch (error) {
@@ -182,7 +183,7 @@ export default function ChatPage() {
          const mediaDataUri = (selectedMessage.fileName && mediaContent[selectedMessage.fileName])
             ? arrayBufferToDataUri(mediaContent[selectedMessage.fileName].buffer, getMimeType(selectedMessage.fileName))
             : null;
-        result = await getContextualAiResponse(selectedMessage, mediaDataUri, query);
+        result = await getContextualAiResponse(selectedMessage, mediaDataUri, query, language);
         
         assistantMessage = { role: 'assistant', content: result.answer, contextMessage: selectedMessage };
 
@@ -205,6 +206,7 @@ export default function ChatPage() {
             chatLog: conversationData.chatText,
             query,
             images: imagesToAnalyze,
+            language,
         });
         assistantMessage = { role: 'assistant', content: result.answer };
       }
@@ -268,6 +270,8 @@ export default function ChatPage() {
                     inputValue={queryInputValue}
                     setInputValue={setQueryInputValue}
                     mediaContent={mediaContent}
+                    language={language}
+                    onLanguageChange={setLanguage}
                   >
                     {selectedMessage && (
                       <SelectedMessageView 

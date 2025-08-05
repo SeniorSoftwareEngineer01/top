@@ -17,7 +17,7 @@ export async function getAiResponse(input: AnalyzeWhatsappChatInput): Promise<An
     }
 }
 
-export async function getContextualAiResponse(message: ParsedMessage, mediaDataUri: string | null, query: string): Promise<AnalyzeWhatsappChatOutput> {
+export async function getContextualAiResponse(message: ParsedMessage, mediaDataUri: string | null, query: string, language: string): Promise<AnalyzeWhatsappChatOutput> {
     try {
         let chatLog = `An user has selected a specific message from a WhatsApp chat to discuss.\n\n`;
         chatLog += `Message Author: ${message.author}\n`;
@@ -27,7 +27,7 @@ export async function getContextualAiResponse(message: ParsedMessage, mediaDataU
             chatLog: chatLog,
             query: query,
             images: [],
-            language: 'ar', // Assuming arabic for now, could be passed from client
+            language: language,
         };
 
         if (message.type === 'text' && message.content) {

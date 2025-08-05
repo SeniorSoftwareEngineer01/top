@@ -22,7 +22,7 @@ const AnalyzeWhatsappChatInputSchema = z.object({
     dataUri: z.string().describe("An image from the chat, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
   })).describe('An array of images present in the chat.').optional(),
   audioDataUri: z.string().describe("An audio file to transcribe and analyze, as a data URI.").optional(),
-  language: z.string().describe('The language of the user query.').optional().default('ar'),
+  language: z.string().describe('The language for the AI to respond in (e.g., "ar", "fr").').optional().default('ar'),
 });
 export type AnalyzeWhatsappChatInput = z.infer<typeof AnalyzeWhatsappChatInputSchema>;
 
@@ -45,9 +45,11 @@ const prompt = ai.definePrompt({
         dataUri: z.string(),
       })).optional(),
       audioTranscription: z.string().optional(),
+      language: z.string().optional().default('ar'),
   })},
   output: {schema: AnalyzeWhatsappChatOutputSchema},
   prompt: `You are an expert data analyst and visualization assistant, specializing in analyzing and visualizing WhatsApp chat data.
+You will respond in the language specified by the user, which is: {{language}}.
 
 Your capabilities include:
 - Analyzing large volumes of text to identify key themes, topics, and user behaviors.
@@ -100,7 +102,7 @@ A relevant audio transcription:
 User's Request:
 "{{query}}"
 
-Provide your comprehensive analysis below. 
+Provide your comprehensive analysis below. Your response MUST be in {{language}}.
 - For textual answers, use clear language and format the response using HTML (<p>, <ul>, <strong>, etc.) for better readability.
 - For tables, format it using HTML with semantic Tailwind CSS classes that adapt to the theme. Use classes like 'bg-card', 'text-card-foreground', 'border-border', 'bg-muted', 'text-muted-foreground' instead of hardcoded colors like 'bg-white' or 'text-gray-500'. For example: <table class="w-full text-sm text-left rtl:text-right text-card-foreground">.
 - For charts/diagrams, provide the complete, self-contained Mermaid.js code inside a <pre class="mermaid"> block as instructed above.
@@ -132,6 +134,7 @@ const analyzeWhatsappChatFlow = ai.defineFlow(
         query: input.query,
         images: input.images,
         audioTranscription: audioTranscription,
+        language: input.language,
     });
     return output!;
   }

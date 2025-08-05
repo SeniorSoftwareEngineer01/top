@@ -10,6 +10,8 @@ import React, { useEffect, useRef, useState, useId } from 'react';
 import { TtsDialog } from './tts-dialog';
 import type { ParsedMessage } from '@/lib/parser';
 import { MediaMessage } from './media-message';
+import { LangDialog } from './lang-dialog';
+
 
 // Make mermaid available globally
 declare global {
@@ -32,6 +34,8 @@ interface QueryInterfaceProps {
   setInputValue: (value: string) => void;
   children?: React.ReactNode;
   mediaContent: Record<string, { url: string; buffer: ArrayBuffer }>;
+  language: string;
+  onLanguageChange: (lang: string) => void;
 }
 
 const LoadingIndicator = () => (
@@ -68,17 +72,16 @@ const AssistantMessage = ({ msg }: { msg: AIMessage }) => {
   useEffect(() => {
     const mermaidRegex = /(<pre\s+class="mermaid">[\s\S]*?<\/pre>)/;
     const match = msg.content.match(mermaidRegex);
+    
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = match ? match[1] : '';
+    const mermaidCode = tempDiv.querySelector('.mermaid')?.textContent || '';
+    
+    setMermaidContent(mermaidCode);
+
     const mainText = msg.content.replace(mermaidRegex, '').trim();
     setTextContent(mainText);
 
-    if (match) {
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = match[1];
-      const mermaidCode = tempDiv.querySelector('.mermaid')?.textContent || '';
-      setMermaidContent(mermaidCode);
-    } else {
-      setMermaidContent('');
-    }
   }, [msg.content]);
 
   useEffect(() => {
@@ -86,7 +89,9 @@ const AssistantMessage = ({ msg }: { msg: AIMessage }) => {
         const renderMermaid = () => {
             if (window.mermaid) {
                 try {
-                    const mermaidId = `mermaid-svg-${uniqueId}`;
+                    const mermaidId = `mermaid-svg-${uniqueId.replace(/:/g, '')}`;
+                    // Ensure the container is empty before rendering
+                    mermaidContainerRef.current!.innerHTML = ''; 
                     window.mermaid.render(mermaidId, mermaidContent, (svgCode: string) => {
                        if (mermaidContainerRef.current) {
                            mermaidContainerRef.current.innerHTML = svgCode;
@@ -119,8 +124,9 @@ const AssistantMessage = ({ msg }: { msg: AIMessage }) => {
 };
 
 
-export function QueryInterface({ conversation, onQuery, isLoading, inputValue, setInputValue, children, mediaContent }: QueryInterfaceProps) {
+export function QueryInterface({ conversation, onQuery, isLoading, inputValue, setInputValue, children, mediaContent, language, onLanguageChange }: QueryInterfaceProps) {
   const [isTtsDialogOpen, setIsTtsDialogOpen] = useState(false);
+  const [isLangDialogOpen, setIsLangDialogOpen] = useState(false);
   const conversationEndRef = useRef<HTMLDivElement>(null);
 
 
@@ -135,8 +141,11 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
     const trimmedQuery = inputValue.trim();
     if (!trimmedQuery || isLoading) return;
 
-    if (trimmedQuery === '.stt') {
+    if (trimmedQuery.toLowerCase() === '.stt') {
       setIsTtsDialogOpen(true);
+      setInputValue('');
+    } else if (trimmedQuery.toLowerCase() === '.lang') {
+      setIsLangDialogOpen(true);
       setInputValue('');
     } else {
       onQuery(trimmedQuery);
@@ -158,6 +167,12 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
       isOpen={isTtsDialogOpen}
       onOpenChange={setIsTtsDialogOpen}
       textToSpeak={lastAssistantMessage}
+    />
+     <LangDialog
+        isOpen={isLangDialogOpen}
+        onOpenChange={setIsLangDialogOpen}
+        currentLanguage={language}
+        onLanguageChange={onLanguageChange}
     />
     <div className="flex h-screen flex-col bg-muted/30">
       <div className="flex-1 overflow-hidden">
