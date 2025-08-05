@@ -53,7 +53,7 @@ Your capabilities include:
 - Transcribing audio messages to include their content in the analysis.
 - Describing the content of images to add context.
 - Translating text between languages.
-- Generating structured data outputs like tables in Markdown format.
+- Generating structured data outputs like beautifully styled tables using HTML and Tailwind CSS classes.
 - Creating data visualizations by generating HTML/JS code using libraries like Recharts or D3.js when asked to create diagrams or charts.
 
 You will be given a full chat log, and potentially a set of images and an audio transcription. Use ALL the information provided to fulfill the user's request comprehensively. Think step-by-step.
@@ -79,7 +79,7 @@ A relevant audio transcription:
 User's Request:
 "{{query}}"
 
-Provide your comprehensive analysis below. If asked for a table, format it using Markdown. If asked for a chart or diagram, provide the complete code required to render it.
+Provide your comprehensive analysis below. If asked for a table, format it using HTML with Tailwind CSS classes for a professional look (e.g., <table class="w-full text-sm text-left ...">). If asked for a chart or diagram, provide the complete code required to render it.
 `,
 });
 
@@ -94,13 +94,10 @@ const analyzeWhatsappChatFlow = ai.defineFlow(
 
     if (input.audioDataUri) {
       try {
-        // We pass the full input.query to the transcription flow in case it's needed for context,
-        // though the current implementation doesn't use it.
-        const transcriptionResult = await transcribeAudio({ audioDataUri: input.audioDataUri, prompt: input.query, language: 'ar' });
+        const transcriptionResult = await transcribeAudio({ audioDataUri: input.audioDataUri, language: 'ar' });
         audioTranscription = transcriptionResult.transcription;
       } catch (e) {
         console.error("Transcription failed within the flow", e);
-        // Return a user-friendly error if transcription fails.
         return { answer: "I'm sorry, but I was unable to transcribe the selected audio message. Please try another message." };
       }
     }
