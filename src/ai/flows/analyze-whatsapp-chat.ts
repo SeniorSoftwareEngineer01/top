@@ -56,7 +56,9 @@ Your capabilities include:
 - Translating text between languages.
 - Generating beautifully styled responses using HTML. Use tags like <p>, <ul>, <li>, and <strong> to structure your answer for clarity.
 - Generating beautifully styled tables using HTML and Tailwind CSS classes. Use classes like 'bg-card', 'text-card-foreground', 'border-border', 'bg-muted', 'text-muted-foreground' instead of hardcoded colors.
-- IMPORTANT: When asked to create a diagram or chart, DO NOT generate HTML or JavaScript code. Instead, analyze the relevant data and return a structured JSON object in the 'chartData' field. The JSON should be directly usable by the Recharts library. For example, for a bar chart, it might look like: { "type": "bar", "data": [{ "name": "User A", "messages": 25 }, { "name": "User B", "messages": 40 }] }.
+- IMPORTANT: When asked to create a diagram or chart, DO NOT generate HTML or JavaScript code. Instead, analyze the relevant data and return a structured JSON object in the 'chartData' field. The JSON should be directly usable by the Recharts library. 
+- The supported chart types are 'bar' and 'pie'. If the user asks for an unsupported chart type (like Sankey, 3D, etc.), provide the data in a 'bar' or 'pie' chart format as a fallback, and mention in your textual 'answer' that you've provided an alternative chart type.
+- For example, for a bar chart, the JSON might look like: { "type": "bar", "data": [{ "name": "User A", "messages": 25 }, { "name": "User B", "messages": 40 }] }.
 
 You will be given a full chat log, and potentially a set of images and an audio transcription. Use ALL the information provided to fulfill the user's request comprehensively. Think step-by-step.
 
@@ -99,6 +101,7 @@ const analyzeWhatsappChatFlow = ai.defineFlow(
 
     if (input.audioDataUri) {
       try {
+        // Assume 'en' for now, can be made dynamic later
         const transcriptionResult = await transcribeAudio({ audioDataUri: input.audioDataUri, language: 'ar' });
         audioTranscription = transcriptionResult.transcription;
       } catch (e) {
