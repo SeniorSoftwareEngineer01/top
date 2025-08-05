@@ -68,7 +68,11 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
   useEffect(() => {
     // Initialize Mermaid.js
     if (window.mermaid) {
-        window.mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
+        try {
+            window.mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
+        } catch (e) {
+            console.error("Failed to initialize Mermaid", e);
+        }
     }
   }, []);
 
@@ -78,18 +82,20 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
 
     // Render diagrams
     if (window.mermaid) {
-        // We look for unprocessed mermaid divs and render them.
-        const mermaidDivs = document.querySelectorAll('pre.mermaid:not([data-processed])');
-        if (mermaidDivs.length > 0) {
+      try {
+        const mermaidElements = document.querySelectorAll('.mermaid');
+        mermaidElements.forEach(el => {
+          // Add a guard to prevent re-rendering
+          if (!el.hasAttribute('data-processed')) {
+            el.removeAttribute('style'); // Remove inline styles to make it visible before rendering
             window.mermaid.run({
-                nodes: mermaidDivs
+              nodes: [el]
             });
-            // We mark them as processed to avoid re-rendering
-             mermaidDivs.forEach((div) => {
-                const preElement = div as HTMLElement;
-                preElement.style.visibility = 'visible';
-            });
-        }
+          }
+        });
+      } catch (e) {
+        console.error("Error rendering Mermaid diagram:", e);
+      }
     }
   }, [conversation, isLoading]);
 
@@ -160,7 +166,7 @@ export function QueryInterface({ conversation, onQuery, isLoading, inputValue, s
                   {msg.contextMessage && <ContextMessageDisplay message={msg.contextMessage} mediaContent={mediaContent} />}
                   
                   {msg.role === 'assistant' && msg.content ? (
-                      <div className="prose prose-sm max-w-none prose-p:m-0 [&_pre.mermaid]:bg-transparent [&_pre.mermaid]:p-0" dangerouslySetInnerHTML={{ __html: msg.content.replace(/<pre class="mermaid">/g, '<pre class="mermaid" style="visibility: hidden;">') }} />
+                      <div className="prose prose-sm max-w-none prose-p:m-0 [&_pre.mermaid]:bg-transparent [&_pre.mermaid]:p-0" dangerouslySetInnerHTML={{ __html: msg.content }} />
                   ) : (
                       <p className='whitespace-pre-wrap'>{msg.content}</p>
                   )}
