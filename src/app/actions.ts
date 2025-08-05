@@ -9,8 +9,11 @@ import type { ParsedMessage } from "@/lib/parser";
 export async function getAiResponse(input: AnalyzeWhatsappChatInput): Promise<AnalyzeWhatsappChatOutput> {
     if (input.audioDataUri && !input.images) {
         try {
-            const { transcription } = await transcribeAudioFlow({ audioDataUri: input.audioDataUri, language: 'ar' });
-            return { answer: transcription };
+            // This is a special case for simple transcription requests
+            if (input.query.toLowerCase().includes('transcribe') && !input.query.toLowerCase().includes('and') && !input.query.toLowerCase().includes('then')) {
+                 const { transcription } = await transcribeAudioFlow({ audioDataUri: input.audioDataUri, language: 'ar' });
+                 return { answer: transcription };
+            }
         } catch (error) {
             console.error('Error in audio transcription via getAiResponse:', error);
             throw new Error("I'm sorry, but I was unable to transcribe the selected audio message. Please try another message.");
@@ -18,6 +21,7 @@ export async function getAiResponse(input: AnalyzeWhatsappChatInput): Promise<An
     }
 
     try {
+        // For all other cases, including analysis of audio, we run the full flow.
         const result = await analyzeWhatsappChat(input);
         return result;
     } catch (error) {
@@ -47,9 +51,9 @@ export async function getContextualAiResponse(message: ParsedMessage, mediaDataU
         }
         if (message.type === 'audio' && message.fileName && mediaDataUri) {
              input.audioDataUri = mediaDataUri;
-             // The query for transcription will be handled by the getAiResponse function now
-             // so we can ask for transcription and analysis in one go.
-             input.query = `The user has selected an audio message. First, transcribe it, then answer the user's query about the content: "${query}"`;
+             // We pass the audio to the main flow for transcription and analysis together.
+             const baseQuery = `The user has selected an audio message. First, transcribe it, then answer the user's query about the content: "${query}"`;
+             input.query = baseQuery;
         }
         if (message.type === 'video' && message.fileName) {
             input.chatLog += `The user has selected a video file named "${message.fileName}". Analysis of video content is not yet supported, but you can comment on the context if available.\n\n`;
@@ -58,6 +62,7 @@ export async function getContextualAiResponse(message: ParsedMessage, mediaDataU
             input.chatLog += `The user has selected a file named "${message.fileName}". Analysis of file content is not yet supported, but you can comment on the context if available.\n\n`;
         }
 
+        // Use the main analysis flow for all contextual responses.
         const result = await analyzeWhatsappChat(input);
         return result;
 
